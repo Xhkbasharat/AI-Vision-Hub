@@ -1,13 +1,8 @@
 
 import re
-import pickle
 from pathlib import Path
 
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import train_test_split
-from sklearn.pipeline import Pipeline
-from sklearn.metrics import accuracy_score
+import joblib
 
 from config import MODEL_FOLDER
 
@@ -17,116 +12,129 @@ class FakeNewsDetector:
     def __init__(self):
 
         self.model_path = (
-            Path(MODEL_FOLDER) / "fake_news_model.pkl"
+            Path(MODEL_FOLDER) / "fake_news_model.joblib"
         )
 
         self.model = None
-        self.accuracy = None
 
-    def clean_text(self, text):
+    # ======================================
+    # CLEAN TEXT
+    # ======================================
 
-        text = str(text).lower()
-        text = re.sub(r"http\S+|www\S+", "", text)
-        text = re.sub(r"[^a-z\s]", " ", text)
-        text = re.sub(r"\s+", " ", text)
+    @staticmethod
+    def clean_text(text):
+
+        if not isinstance(text, str):
+            raise ValueError(
+                "News text must be a string."
+            )
+
+        text = text.lower()
+
+        text = re.sub(
+            r"http\S+|www\S+",
+            " ",
+            text
+        )
+
+        text = re.sub(
+            r"[^a-z\s]",
+            " ",
+            text
+        )
+
+        text = re.sub(
+            r"\s+",
+            " ",
+            text
+        )
 
         return text.strip()
 
-    def train(self, texts, labels):
+    # ======================================
+    # VALIDATE INPUT
+    # ======================================
 
-        if len(texts) != len(labels):
+    @staticmethod
+    def validate_text(text):
+
+        if not isinstance(text, str):
             raise ValueError(
-                "Texts and labels must have equal lengths."
+                "Input must be text."
             )
 
-        if len(texts) < 10:
+        text = text.strip()
+
+        if not text:
             raise ValueError(
-                "Provide at least 10 training examples."
+                "Enter a news article or headline."
             )
 
-        clean_texts = [
-            self.clean_text(text)
-            for text in texts
-        ]
-
-        if len(set(labels)) != 2:
+        if len(text) > 10000:
             raise ValueError(
-                "Training requires exactly two classes."
+                "Text must be 10000 characters or fewer."
             )
 
-        X_train, X_test, y_train, y_test = (
-            train_test_split(
-                clean_texts,
-                labels,
-                test_size=0.2,
-                random_state=42,
-                stratify=labels
-            )
-        )
+        return text
 
-        self.model = Pipeline([
-            (
-                "tfidf",
-                TfidfVectorizer(
-                    stop_words="english",
-                    max_features=10000,
-                    ngram_range=(1, 2)
-                )
-            ),
-            (
-                "classifier",
-                LogisticRegression(
-                    max_iter=1000,
-                    class_weight="balanced"
-                )
-            )
-        ])
-
-        self.model.fit(X_train, y_train)
-
-        predictions = self.model.predict(X_test)
-
-        self.accuracy = round(
-            accuracy_score(y_test, predictions),
-            4
-        )
-
-        self.model_path.parent.mkdir(
-            parents=True,
-            exist_ok=True
-        )
-
-        with open(self.model_path, "wb") as file:
-            pickle.dump(self.model, file)
-
-        return self.accuracy
+    # ======================================
+    # LOAD TRAINED MODEL
+    # ======================================
 
     def load_model(self):
 
         if not self.model_path.exists():
             raise FileNotFoundError(
-                "Train the model before making predictions."
+                "Fake news model is not trained. "
+                "Run python train_fake_news.py first."
             )
 
-        with open(self.model_path, "rb") as file:
-            self.model = pickle.load(file)
+        try:
+            self.model = joblib.load(
+                self.model_path
+            )
+
+        except Exception as error:
+            raise RuntimeError(
+                "Could not load fake news model."
+            ) from error
+
+        if not hasattr(self.model, "predict"):
+            raise RuntimeError(
+                "The saved file is not a valid classifier."
+            )
+
+        if not hasattr(self.model, "predict_proba"):
+            raise RuntimeError(
+                "The classifier must support predict_proba."
+            )
+
+        return self.model
+
+    # ======================================
+    # PREDICT NEWS LABEL
+    # ======================================
 
     def predict(self, text):
 
-        if not isinstance(text, str) or not text.strip():
+        text = self.validate_text(text)
+
+        cleaned_text = self.clean_text(text)
+
+        if not cleaned_text:
             raise ValueError(
-                "Please enter a news article or headline."
+                "No usable text remains after cleaning."
             )
 
         if self.model is None:
             self.load_model()
 
-        cleaned = self.clean_text(text)
-
-        prediction = self.model.predict([cleaned])[0]
+        prediction = self.model.predict(
+            [cleaned_text]
+        )[0]
 
         probabilities = self.model.predict_proba(
-            [cleaned]
+            [cleaned_text]
         )[0]
 
         scores = {
@@ -141,7 +149,8 @@ class FakeNewsDetector:
             "prediction": str(prediction),
             "scores": scores,
             "warning": (
-                "This is a text-pattern classification result, "
-                "not independent verification of the news claim."
+                "This model identifies patterns learned "
+                "from its training dataset. It does not "
+                "independently verify news claims."
             )
         }
