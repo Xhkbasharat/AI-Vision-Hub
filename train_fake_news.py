@@ -1,45 +1,65 @@
 
+import logging
 import re
+import sys
+
 from pathlib import Path
 
 import joblib
 import pandas as pd
 
+from sklearn.pipeline import Pipeline
+
 from sklearn.feature_extraction.text import TfidfVectorizer
+
 from sklearn.linear_model import LogisticRegression
+
+from sklearn.model_selection import train_test_split
+
 from sklearn.metrics import (
     accuracy_score,
     classification_report,
     confusion_matrix
 )
-from sklearn.model_selection import train_test_split
-from sklearn.pipeline import Pipeline
 
-from config import DATA_DIR, MODEL_FOLDER
+from config import BASE_DIR, MODEL_FOLDER
 
 
-# ==========================================
-# FILE PATHS
-# ==========================================
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
-DATASET_PATH = Path(DATA_DIR) / "fake_news_dataset.csv"
+logger = logging.getLogger("AI-Vision-Hub")
 
-MODEL_PATH = (
-    Path(MODEL_FOLDER) / "fake_news_model.joblib"
+
+# ======================================
+# PATHS
+# ======================================
+
+DATASET_PATH = (
+    Path(BASE_DIR)
+    / "data"
+    / "fake_news_dataset.csv"
+)
+
+OUTPUT_PATH = (
+    Path(MODEL_FOLDER)
+    / "fake_news_model.joblib"
 )
 
 
-# ==========================================
-# TEXT CLEANING
-# ==========================================
+# ======================================
+# CLEAN TEXT
+# ======================================
 
 def clean_text(text):
 
     text = str(text).lower()
 
     text = re.sub(
-        r"http\S+|www\S+",
-        " ",
+        r"https?://\S+|www\.\S+",
+        "",
         text
     )
 
@@ -58,107 +78,176 @@ def clean_text(text):
     return text.strip()
 
 
-# ==========================================
+# ======================================
 # LOAD DATASET
-# ==========================================
+# ======================================
 
 def load_dataset():
 
     if not DATASET_PATH.exists():
+
         raise FileNotFoundError(
             f"Dataset not found: {DATASET_PATH}"
         )
 
-    dataset = pd.read_csv(DATASET_PATH)
+    logger.info(
+        "Loading dataset: %s",
+        DATASET_PATH
+    )
 
-    required_columns = {
+    dataframe = pd.read_csv(
+        DATASET_PATH
+    )
+
+    required_columns = [
         "text",
         "label"
-    }
+    ]
 
-    if not required_columns.issubset(dataset.columns):
+    missing_columns = [
+        column
+        for column in required_columns
+        if column not in dataframe.columns
+    ]
+
+    if missing_columns:
+
         raise ValueError(
-            "Dataset must contain text and label columns."
+            f"Missing required columns: {missing_columns}"
         )
 
-    dataset = dataset[
-        ["text", "label"]
-    ].dropna()
+    dataframe = dataframe[
+        required_columns
+    ].copy()
 
-    dataset["text"] = dataset["text"].apply(clean_text)
+    dataframe = dataframe.dropna()
 
-    dataset["label"] = (
-        dataset["label"]
+    dataframe["text"] = (
+        dataframe["text"]
+        .astype(str)
+        .str.strip()
+    )
+
+    dataframe["label"] = (
+        dataframe["label"]
         .astype(str)
         .str.strip()
         .str.upper()
     )
 
-    dataset = dataset[
-        dataset["label"].isin(["REAL", "FAKE"])
+    dataframe["text"] = dataframe[
+        "text"
+    ].apply(clean_text)
+
+    dataframe = dataframe[
+        dataframe["label"].isin([
+            "REAL",
+            "FAKE"
+        ])
     ]
 
-    dataset = dataset[
-        dataset["text"].str.len() > 0
+    dataframe = dataframe[
+        dataframe["text"] != ""
     ]
 
-    dataset = dataset.drop_duplicates(
-        subset=["text", "label"]
+    # Remove ambiguous duplicate articles.
+    dataframe["text_key"] = (
+        dataframe["text"]
     )
 
-    if dataset.empty:
-        raise ValueError(
-            "No valid labelled records were found."
+    label_counts = dataframe.groupby(
+        "text_key"
+    )["label"].nunique()
+
+    ambiguous_texts = label_counts[
+        label_counts > 1
+    ].index
+
+    dataframe = dataframe[
+        ~dataframe["text_key"].isin(
+            ambiguous_texts
         )
+    ]
 
-    class_counts = dataset["label"].value_counts()
+    dataframe = dataframe.drop_duplicates(
+        subset=["text_key"]
+    )
 
-    if not {"REAL", "FAKE"}.issubset(
-        set(class_counts.index)
-    ):
+    dataframe = dataframe.drop(
+        columns=["text_key"]
+    )
+
+    class_counts = dataframe["label"].value_counts()
+
+    logger.info(
+        "Dataset class distribution:\n%s",
+        class_counts
+    )
+
+    if len(class_counts) != 2:
+
         raise ValueError(
             "Dataset must contain both REAL and FAKE labels."
         )
 
-    if class_counts.min() < 5:
+    if class_counts.min() < 10:
+
         raise ValueError(
-            "At least five examples per class are required."
+            "At least 10 examples per class are required. "
+            "More data is recommended for reliable evaluation."
         )
 
-    return dataset
+    logger.info(
+        "Dataset loaded successfully: %s records.",
+        len(dataframe)
+    )
+
+    return dataframe
 
 
-# ==========================================
+# ======================================
 # TRAIN MODEL
-# ==========================================
+# ======================================
 
 def train_model():
 
-    print("Loading fake-news dataset...")
+    dataframe = load_dataset()
 
-    dataset = load_dataset()
+    X = dataframe["text"]
 
-    X = dataset["text"]
-    y = dataset["label"]
+    y = dataframe["label"]
 
-    print("\nDataset summary:")
-    print(dataset["label"].value_counts())
-
-    X_train, X_test, y_train, y_test = train_test_split(
-        X,
-        y,
-        test_size=0.20,
-        random_state=42,
-        stratify=y
+    X_train, X_test, y_train, y_test = (
+        train_test_split(
+            X,
+            y,
+            test_size=0.2,
+            random_state=42,
+            stratify=y
+        )
     )
 
+    logger.info(
+        "Training records: %s",
+        len(X_train)
+    )
+
+    logger.info(
+        "Testing records: %s",
+        len(X_test)
+    )
+
+    # Build classification pipeline.
     model = Pipeline([
         (
             "tfidf",
             TfidfVectorizer(
+                stop_words="english",
                 max_features=20000,
                 ngram_range=(1, 2),
-                stop_words="english"
+                min_df=1,
+                max_df=0.95,
+                sublinear_tf=True
             )
         ),
         (
@@ -171,43 +260,46 @@ def train_model():
         )
     ])
 
-    print("\nTraining model...")
+    logger.info(
+        "Starting model training."
+    )
 
     model.fit(
         X_train,
         y_train
     )
 
-    # ======================================
-    # EVALUATION
-    # ======================================
+    logger.info(
+        "Model training completed."
+    )
 
-    predictions = model.predict(X_test)
+    # Evaluate model.
+    predictions = model.predict(
+        X_test
+    )
 
     accuracy = accuracy_score(
         y_test,
         predictions
     )
 
-    print("\nModel evaluation")
-    print("================")
+    print("\n========== MODEL EVALUATION ==========")
 
     print(
-        f"Test accuracy: {accuracy:.4f}"
+        f"Accuracy: {accuracy:.4f}"
     )
 
-    print("\nClassification report:")
+    print("\nClassification Report:")
 
     print(
         classification_report(
             y_test,
             predictions,
-            labels=["FAKE", "REAL"],
             zero_division=0
         )
     )
 
-    print("\nConfusion matrix:")
+    print("Confusion Matrix:")
 
     print(
         confusion_matrix(
@@ -217,33 +309,60 @@ def train_model():
         )
     )
 
-    # ======================================
-    # SAVE MODEL
-    # ======================================
+    print("======================================\n")
 
-    MODEL_PATH.parent.mkdir(
+    # Save trained model.
+    OUTPUT_PATH.parent.mkdir(
         parents=True,
         exist_ok=True
     )
 
     joblib.dump(
         model,
-        MODEL_PATH
+        OUTPUT_PATH
     )
 
-    print("\nModel saved successfully:")
-    print(MODEL_PATH)
+    logger.info(
+        "Trained model saved: %s",
+        OUTPUT_PATH
+    )
+
+    return {
+        "accuracy": float(accuracy),
+        "training_records": len(X_train),
+        "testing_records": len(X_test),
+        "model_path": str(OUTPUT_PATH)
+    }
 
 
-# ==========================================
-# PROGRAM ENTRY POINT
-# ==========================================
+# ======================================
+# MAIN
+# ======================================
 
 if __name__ == "__main__":
 
     try:
-        train_model()
+
+        result = train_model()
+
+        print("\nTraining completed successfully.")
+
+        print(
+            f"Model accuracy: {result['accuracy']:.2%}"
+        )
+
+        print(
+            f"Model saved at: {result['model_path']}"
+        )
 
     except Exception as error:
-        print("\nTraining failed:")
-        print(error)
+
+        logger.exception(
+            "Fake news model training failed."
+        )
+
+        print(
+            f"\nTraining failed: {error}"
+        )
+
+        sys.exit(1)
