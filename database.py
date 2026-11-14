@@ -1,214 +1,140 @@
 
-import sqlite3
-from datetime import datetime, timezone
+import tempfile
+import unittest
+from pathlib import Path
 
-from config import DATABASE_PATH
+from database import Database
 
 
-class Database:
+class TestAIVisionHubDatabase(unittest.TestCase):
 
-    def __init__(self):
-        self.database_path = DATABASE_PATH
-        self.create_tables()
+    def setUp(self):
+        """
+        Create an isolated temporary database for each test.
+        """
 
-    # ======================================
-    # DATABASE CONNECTION
-    # ======================================
+        self.temp_dir = tempfile.TemporaryDirectory()
 
-    def get_connection(self):
-        connection = sqlite3.connect(
-            str(self.database_path),
-            timeout=30
+        self.database_path = (
+            Path(self.temp_dir.name) / "test_ai_vision_hub.db"
         )
 
-        connection.row_factory = sqlite3.Row
-        connection.execute("PRAGMA foreign_keys = ON")
+        self.db = Database()
 
-        return connection
+        # Match the attribute used by database.py.
+        self.db.database_path = self.database_path
 
-    # ======================================
-    # CREATE DATABASE TABLES
-    # ======================================
+        # Create tables in the temporary database.
+        self.db.create_tables()
 
-    def create_tables(self):
-        with self.get_connection() as connection:
+    def tearDown(self):
+        """
+        Clean up the temporary database after each test.
+        """
 
-            connection.execute("""
-                CREATE TABLE IF NOT EXISTS uploads (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    filename TEXT NOT NULL,
-                    file_type TEXT NOT NULL,
-                    uploaded_at TEXT NOT NULL
-                )
-            """)
+        self.temp_dir.cleanup()
 
-            connection.execute("""
-                CREATE TABLE IF NOT EXISTS faces (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    person_name TEXT NOT NULL,
-                    image_path TEXT NOT NULL,
-                    created_at TEXT NOT NULL
-                )
-            """)
+    def test_database_file_created(self):
 
-            connection.execute("""
-                CREATE TABLE IF NOT EXISTS analysis_results (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    module_name TEXT NOT NULL,
-                    input_text TEXT,
-                    result TEXT,
-                    confidence REAL,
-                    created_at TEXT NOT NULL
-                )
-            """)
+        self.assertTrue(
+            self.database_path.exists()
+        )
 
-            connection.commit()
+    def test_add_upload(self):
 
-    # ======================================
-    # TIMESTAMP
-    # ======================================
+        upload_id = self.db.add_upload(
+            "test_image.jpg",
+            "image"
+        )
 
-    @staticmethod
-    def current_timestamp():
-        return datetime.now(timezone.utc).isoformat()
+        self.assertIsNotNone(upload_id)
+        self.assertGreater(upload_id, 0)
 
-    # ======================================
-    # ADD UPLOAD
-    # ======================================
+    def test_add_face(self):
 
-    def add_upload(self, filename, file_type):
-        with self.get_connection() as connection:
+        face_id = self.db.add_face(
+            "Test Person",
+            "data/known_faces/test_person/image_1.jpg"
+        )
 
-            cursor = connection.execute("""
-                INSERT INTO uploads (
-                    filename,
-                    file_type,
-                    uploaded_at
-                )
-                VALUES (?, ?, ?)
-            """, (
-                filename,
-                file_type,
-                self.current_timestamp()
-            ))
+        self.assertIsNotNone(face_id)
+        self.assertGreater(face_id, 0)
 
-            connection.commit()
+        faces = self.db.get_faces()
 
-            return cursor.lastrowid
+        self.assertGreaterEqual(
+            len(faces),
+            1
+        )
 
-    # ======================================
-    # ADD REGISTERED FACE
-    # ======================================
+        self.assertEqual(
+            faces[0]["person_name"],
+            "Test Person"
+        )
 
-    def add_face(self, person_name, image_path):
-        with self.get_connection() as connection:
+    def test_save_analysis(self):
 
-            cursor = connection.execute("""
-                INSERT INTO faces (
-                    person_name,
-                    image_path,
-                    created_at
-                )
-                VALUES (?, ?, ?)
-            """, (
-                person_name,
-                image_path,
-                self.current_timestamp()
-            ))
+        analysis_id = self.db.save_analysis(
+            module_name="object_detection",
+            input_text="test_image.jpg",
+            result="Detected one object",
+            confidence=0.95
+        )
 
-            connection.commit()
+        self.assertIsNotNone(analysis_id)
+        self.assertGreater(analysis_id, 0)
 
-            return cursor.lastrowid
+    def test_analysis_history(self):
 
-    # ======================================
-    # GET REGISTERED FACES
-    # ======================================
+        self.db.save_analysis(
+            module_name="sentiment_analysis",
+            input_text="This is a great project!",
+            result="POSITIVE",
+            confidence=0.98
+        )
 
-    def get_faces(self):
-        with self.get_connection() as connection:
+        history = self.db.get_analysis_history()
 
-            rows = connection.execute("""
-                SELECT *
-                FROM faces
-                ORDER BY created_at DESC
-            """).fetchall()
+        self.assertGreaterEqual(
+            len(history),
+            1
+        )
 
-            return [dict(row) for row in rows]
+        self.assertEqual(
+            history[0]["module_name"],
+            "sentiment_analysis"
+        )
 
-    # ======================================
-    # SAVE ANALYSIS RESULT
-    # ======================================
+    def test_dashboard_stats(self):
 
-    def save_analysis(
-        self,
-        module_name,
-        input_text,
-        result,
-        confidence=None
-    ):
-        with self.get_connection() as connection:
+        self.db.add_upload(
+            "dashboard_test.jpg",
+            "image"
+        )
 
-            cursor = connection.execute("""
-                INSERT INTO analysis_results (
-                    module_name,
-                    input_text,
-                    result,
-                    confidence,
-                    created_at
-                )
-                VALUES (?, ?, ?, ?, ?)
-            """, (
-                module_name,
-                str(input_text),
-                str(result),
-                confidence,
-                self.current_timestamp()
-            ))
+        stats = self.db.get_dashboard_stats()
 
-            connection.commit()
+        self.assertIn("total_uploads", stats)
+        self.assertIn("registered_faces", stats)
+        self.assertIn("total_analyses", stats)
 
-            return cursor.lastrowid
+        self.assertGreaterEqual(
+            stats["total_uploads"],
+            1
+        )
 
-    # ======================================
-    # GET ANALYSIS HISTORY
-    # ======================================
+    def test_multiple_uploads(self):
 
-    def get_analysis_history(self, limit=50):
-        limit = max(1, min(int(limit), 500))
+        self.db.add_upload("image1.jpg", "image")
+        self.db.add_upload("image2.jpg", "image")
 
-        with self.get_connection() as connection:
+        stats = self.db.get_dashboard_stats()
 
-            rows = connection.execute("""
-                SELECT *
-                FROM analysis_results
-                ORDER BY id DESC
-                LIMIT ?
-            """, (limit,)).fetchall()
+        self.assertEqual(
+            stats["total_uploads"],
+            2
+        )
 
-            return [dict(row) for row in rows]
 
-    # ======================================
-    # DASHBOARD STATISTICS
-    # ======================================
-
-    def get_dashboard_stats(self):
-        with self.get_connection() as connection:
-
-            upload_count = connection.execute("""
-                SELECT COUNT(*) FROM uploads
-            """).fetchone()[0]
-
-            face_count = connection.execute("""
-                SELECT COUNT(DISTINCT person_name)
-                FROM faces
-            """).fetchone()[0]
-
-            analysis_count = connection.execute("""
-                SELECT COUNT(*) FROM analysis_results
-            """).fetchone()[0]
-
-            return {
-                "total_uploads": upload_count,
-                "registered_faces": face_count,
-                "total_analyses": analysis_count
-            }
+if __name__ == "__main__":
+    unittest.main(verbosity=2)
