@@ -1,14 +1,15 @@
 
-import cv2
 import json
-import numpy as np
-import shutil
-
+import re
 from pathlib import Path
+
+import cv2
+import numpy as np
 
 from config import (
     KNOWN_FACES_FOLDER,
-    MODEL_FOLDER
+    MODEL_FOLDER,
+    FACE_MATCH_THRESHOLD
 )
 
 from database import Database
@@ -17,78 +18,113 @@ from database import Database
 class FaceRecognition:
 
     def __init__(self):
-
         self.database = Database()
 
-        self.detector = cv2.CascadeClassifier(
+        self.known_faces_folder = Path(KNOWN_FACES_FOLDER)
+        self.model_folder = Path(MODEL_FOLDER)
+
+        self.known_faces_folder.mkdir(
+            parents=True,
+            exist_ok=True
+        )
+
+        self.model_folder.mkdir(
+            parents=True,
+            exist_ok=True
+        )
+
+        self.model_path = self.model_folder / "face_model.yml"
+        self.labels_path = self.model_folder / "face_labels.json"
+
+        self.face_detector = cv2.CascadeClassifier(
             cv2.data.haarcascades +
             "haarcascade_frontalface_default.xml"
         )
 
-        self.model_path = (
-            Path(MODEL_FOLDER) / "face_model.yml"
+        if self.face_detector.empty():
+            raise RuntimeError(
+                "OpenCV face detector could not be loaded."
+            )
+
+        if not hasattr(cv2, "face"):
+            raise RuntimeError(
+                "OpenCV face module is missing. "
+                "Install opencv-contrib-python."
+            )
+
+        self.recognizer = cv2.face.LBPHFaceRecognizer_create()
+
+        self.labels = {}
+        self.is_trained = False
+
+        self.load_model()
+
+    # ======================================
+    # VALIDATE PERSON NAME
+    # ======================================
+
+    @staticmethod
+    def validate_person_name(person_name):
+
+        if not isinstance(person_name, str):
+            raise ValueError("Person name must be text.")
+
+        person_name = person_name.strip()
+
+        if not person_name:
+            raise ValueError("Person name cannot be empty.")
+
+        if len(person_name) > 50:
+            raise ValueError("Person name is too long.")
+
+        safe_name = re.sub(
+            r"[^a-zA-Z0-9_-]",
+            "_",
+            person_name
         )
 
-        self.labels_path = (
-            Path(MODEL_FOLDER) / "face_labels.json"
-        )
+        return safe_name
 
-        self.recognizer = (
-            cv2.face.LBPHFaceRecognizer_create()
-        )
-
-        self.image_size = (200, 200)
-        self.max_distance = 70
+    # ======================================
+    # DETECT FACES
+    # ======================================
 
     def detect_faces(self, image_path):
 
         image = cv2.imread(str(image_path))
 
         if image is None:
-            raise ValueError("Could not read image.")
+            raise ValueError("Unable to read the image.")
 
         gray = cv2.cvtColor(
             image,
             cv2.COLOR_BGR2GRAY
         )
 
-        faces = self.detector.detectMultiScale(
+        faces = self.face_detector.detectMultiScale(
             gray,
             scaleFactor=1.1,
             minNeighbors=5,
-            minSize=(50, 50)
+            minSize=(40, 40)
         )
 
-        return gray, faces
+        return image, gray, faces
 
-    def register_face(self, image_path, person_name):
+    # ======================================
+    # REGISTER FACE
+    # ======================================
 
-        person_name = person_name.strip()
+    def register_face(self, person_name, image_path):
 
-        if not person_name:
-            raise ValueError("Person name is required.")
+        safe_name = self.validate_person_name(person_name)
 
-        gray, faces = self.detect_faces(image_path)
+        image, gray, faces = self.detect_faces(image_path)
 
         if len(faces) == 0:
-            raise ValueError("No face detected.")
+            raise ValueError("No face detected in the image.")
 
-        # Select the largest detected face
-        x, y, w, h = max(
-            faces,
-            key=lambda face: face[2] * face[3]
-        )
-
-        face = gray[y:y+h, x:x+w]
-
-        face = cv2.resize(
-            face,
-            self.image_size
-        )
-
-        # Create a folder for this person
         person_folder = (
-            Path(KNOWN_FACES_FOLDER) / person_name
+            self.known_faces_folder / safe_name
         )
 
         person_folder.mkdir(
@@ -96,77 +132,117 @@ class FaceRecognition:
             exist_ok=True
         )
 
-        image_count = len(
-            list(person_folder.glob("*.jpg"))
-        )
+        registered_count = 0
 
-        saved_path = (
-            person_folder /
-            f"face_{image_count + 1}.jpg"
-        )
+        for face_box in faces:
 
-        cv2.imwrite(str(saved_path), face)
+            x, y, width, height = face_box
 
-        self.database.add_face(
-            person_name,
-            str(saved_path)
-        )
+            face = gray[
+                y:y + height,
+                x:x + width
+            ]
 
-        return str(saved_path)
+            face = cv2.resize(
+                face,
+                (200, 200)
+            )
+
+            existing_files = list(
+                person_folder.glob("face_*.jpg")
+            )
+
+            image_number = len(existing_files) + 1
+
+            output_path = (
+                person_folder /
+                f"face_{image_number}.jpg"
+            )
+
+            if not cv2.imwrite(
+                str(output_path),
+                face
+            ):
+                raise RuntimeError(
+                    "Could not save registered face."
+                )
+
+            self.database.add_face(
+                person_name=person_name.strip(),
+                image_path=str(output_path)
+            )
+
+            registered_count += 1
+
+        return {
+            "person_name": person_name.strip(),
+            "registered_faces": registered_count,
+            "message": "Face registration completed."
+        }
+
+    # ======================================
+    # TRAIN FACE RECOGNIZER
+    # ======================================
 
     def train_model(self):
 
-        records = self.database.get_faces()
+        face_images = []
+        face_labels = []
 
-        if not records:
-            raise ValueError(
-                "Register faces before training."
+        self.labels = {}
+
+        person_folders = sorted(
+            folder
+            for folder in self.known_faces_folder.iterdir()
+            if folder.is_dir()
+        )
+
+        label_id = 0
+
+        for person_folder in person_folders:
+
+            image_files = sorted(
+                person_folder.glob("face_*.jpg")
             )
 
-        person_names = sorted({
-            record["person_name"]
-            for record in records
-        })
+            valid_images = []
 
-        name_to_label = {
-            name: index
-            for index, name in enumerate(person_names)
-        }
+            for image_path in image_files:
 
-        face_samples = []
-        labels = []
+                image = cv2.imread(
+                    str(image_path),
+                    cv2.IMREAD_GRAYSCALE
+                )
 
-        for record in records:
+                if image is None:
+                    continue
 
-            image_path = record["image_path"]
+                image = cv2.resize(
+                    image,
+                    (200, 200)
+                )
 
-            image = cv2.imread(
-                image_path,
-                cv2.IMREAD_GRAYSCALE
-            )
+                valid_images.append(image)
 
-            if image is None:
+            if not valid_images:
                 continue
 
-            image = cv2.resize(
-                image,
-                self.image_size
-            )
+            self.labels[str(label_id)] = person_folder.name
 
-            face_samples.append(image)
+            for image in valid_images:
+                face_images.append(image)
+                face_labels.append(label_id)
 
-            labels.append(
-                name_to_label[record["person_name"]]
-            )
+            label_id += 1
 
-        if not face_samples:
+        if len(face_images) < 2:
             raise ValueError(
-                "No valid registered face images found."
+                "Register at least two face images before training."
             )
 
         self.recognizer.train(
-            face_samples,
-            np.array(labels, dtype=np.int32)
+            face_images,
+            np.array(face_labels, dtype=np.int32)
         )
 
         self.recognizer.save(
@@ -178,73 +254,125 @@ class FaceRecognition:
             "w",
             encoding="utf-8"
         ) as file:
-
             json.dump(
-                name_to_label,
+                self.labels,
                 file,
                 indent=4
             )
 
-        return len(face_samples)
+        self.is_trained = True
+
+        return {
+            "success": True,
+            "registered_images": len(face_images),
+            "registered_people": len(self.labels),
+            "message": "Face recognition model trained."
+        }
+
+    # ======================================
+    # LOAD TRAINED MODEL
+    # ======================================
+
+    def load_model(self):
+
+        if not self.model_path.exists():
+            return False
+
+        if not self.labels_path.exists():
+            return False
+
+        try:
+            self.recognizer.read(
+                str(self.model_path)
+            )
+
+            with open(
+                self.labels_path,
+                "r",
+                encoding="utf-8"
+            ) as file:
+                self.labels = json.load(file)
+
+            self.is_trained = True
+
+            return True
+
+        except (cv2.error, OSError, ValueError, json.JSONDecodeError):
+            self.is_trained = False
+            self.labels = {}
+
+            return False
+
+    # ======================================
+    # RECOGNIZE FACE
+    # ======================================
 
     def recognize_face(self, image_path):
 
-        if not self.model_path.exists():
+        if not self.is_trained:
+            self.load_model()
+
+        if not self.is_trained:
             raise ValueError(
-                "Train the face model first."
+                "Face model is not trained. "
+                "Register faces and train the model first."
             )
 
-        if not self.labels_path.exists():
-            raise ValueError(
-                "Face label information is missing."
-            )
+        image, gray, faces = self.detect_faces(image_path)
 
-        self.recognizer.read(
-            str(self.model_path)
-        )
-
-        with open(
-            self.labels_path,
-            "r",
-            encoding="utf-8"
-        ) as file:
-
-            name_to_label = json.load(file)
-
-        label_to_name = {
-            int(label): name
-            for name, label in name_to_label.items()
-        }
-
-        gray, faces = self.detect_faces(image_path)
+        if len(faces) == 0:
+            raise ValueError("No face detected.")
 
         results = []
 
-        for (x, y, w, h) in faces:
+        for face_box in faces:
 
-            face = gray[y:y+h, x:x+w]
+            x, y, width, height = face_box
+
+            face = gray[
+                y:y + height,
+                x:x + width
+            ]
 
             face = cv2.resize(
                 face,
-                self.image_size
+                (200, 200)
             )
 
-            label, distance = self.recognizer.predict(
+            label_id, distance = self.recognizer.predict(
                 face
             )
 
-            if distance <= self.max_distance:
-                name = label_to_name.get(
-                    label,
-                    "Unknown"
-                )
-            else:
-                name = "Unknown"
+            person_name = self.labels.get(
+                str(label_id),
+                "Unknown"
+            )
+
+            # LBPH returns a distance, not a probability.
+            # A lower distance means a closer match.
+            is_match = (
+                distance <= 70
+                and person_name != "Unknown"
+            )
 
             results.append({
-                "name": name,
+                "person_name": (
+                    person_name if is_match else "Unknown"
+                ),
                 "distance": round(float(distance), 2),
-                "box": [int(x), int(y), int(w), int(h)]
+                "box": {
+                    "x": int(x),
+                    "y": int(y),
+                    "width": int(width),
+                    "height": int(height)
+                }
             })
 
-        return results
+        return {
+            "faces_detected": len(results),
+            "results": results,
+            "warning": (
+                "Experimental face matching only. "
+                "A match is not proof of identity."
+            )
+        }
