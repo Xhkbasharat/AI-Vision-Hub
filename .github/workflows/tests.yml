@@ -1,0 +1,89 @@
+
+name: AI Vision Hub - Automated Tests
+
+on:
+  push:
+    branches:
+      - main
+      - master
+
+  pull_request:
+    branches:
+      - main
+      - master
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Python Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      # ------------------------------------
+      # CHECKOUT REPOSITORY
+      # ------------------------------------
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ------------------------------------
+      # SETUP PYTHON
+      # ------------------------------------
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      # ------------------------------------
+      # INSTALL DEPENDENCIES
+      # ------------------------------------
+
+      - name: Upgrade pip
+        run: |
+          python -m pip install --upgrade pip
+
+      - name: Install application and development dependencies
+        run: |
+          pip install -r requirements-dev.txt
+
+      # ------------------------------------
+      # VERIFY PROJECT STRUCTURE
+      # ------------------------------------
+
+      - name: Check project structure
+        run: |
+          python check_project.py
+
+      # ------------------------------------
+      # VERIFY IMPORTS
+      # ------------------------------------
+
+      - name: Check Python imports
+        run: |
+          python check_imports.py
+
+      # ------------------------------------
+      # RUN UNIT TESTS
+      # ------------------------------------
+
+      - name: Run unit tests
+        run: |
+          python run_tests.py
+
+      # ------------------------------------
+      # CHECK CODE QUALITY
+      # ------------------------------------
+
+      - name: Run Ruff
+        run: |
+          ruff check .
