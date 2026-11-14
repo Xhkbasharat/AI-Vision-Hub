@@ -280,7 +280,7 @@ The fake news classifier requires a properly labeled dataset at `data/fake_news_
 
 **YOUR NAME**
 
-GitHub: [xgj-basharat](https://github.com/xhk-basharat)
+GitHub: [xhk-basharat](https://github.com/xhk-basharat)
 
 ## 📜 LICENSE
 
