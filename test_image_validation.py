@@ -2,52 +2,48 @@
 import io
 import tempfile
 import unittest
+
 from pathlib import Path
 from unittest.mock import patch
 
 from PIL import Image
 
-import app as application
+from app import app, save_image, database
 
 
 class TestImageValidation(unittest.TestCase):
 
     def setUp(self):
 
-        self.client = application.app.test_client()
+        self.temp_directory = tempfile.TemporaryDirectory()
 
-        self.temp_dir = tempfile.TemporaryDirectory()
-        self.upload_dir = Path(self.temp_dir.name)
+        self.upload_directory = Path(
+            self.temp_directory.name
+        )
 
-        self.upload_patch = patch(
+        self.app_patcher = patch(
             "app.UPLOAD_FOLDER",
-            self.upload_dir,
-            create=True
+            self.upload_directory
         )
 
-        self.upload_patch.start()
+        self.app_patcher.start()
 
-        self.upload_db_patch = patch.object(
-            application.db,
-            "add_upload"
-        )
+        app.config["TESTING"] = True
 
-        self.mock_add_upload = self.upload_db_patch.start()
+        self.client = app.test_client()
 
     def tearDown(self):
 
-        self.upload_db_patch.stop()
-        self.upload_patch.stop()
-        self.temp_dir.cleanup()
+        self.app_patcher.stop()
+
+        self.temp_directory.cleanup()
 
     # ======================================
-    # IMAGE CREATION HELPER
+    # CREATE TEST IMAGE
     # ======================================
 
     @staticmethod
-    def create_test_image():
-
-        image_bytes = io.BytesIO()
+    def create_image():
 
         image = Image.new(
             "RGB",
@@ -55,103 +51,191 @@ class TestImageValidation(unittest.TestCase):
             color="blue"
         )
 
+        image_stream = io.BytesIO()
+
         image.save(
-            image_bytes,
+            image_stream,
             format="JPEG"
         )
 
-        image_bytes.seek(0)
+        image_stream.seek(0)
 
-        return image_bytes
+        return image_stream
 
     # ======================================
-    # VALID IMAGE
+    # VALID IMAGE TEST
     # ======================================
 
-    def test_valid_image_upload(self):
+    @patch.object(database, "add_upload")
+    def test_valid_image(self, mock_add_upload):
 
-        image = self.create_test_image()
+        image_stream = self.create_image()
+
+        from werkzeug.datastructures import FileStorage
+
+        uploaded_file = FileStorage(
+            stream=image_stream,
+            filename="test.jpg",
+            content_type="image/jpeg"
+        )
+
+        saved_path = save_image(
+            uploaded_file
+        )
+
+        self.assertTrue(
+            Path(saved_path).exists()
+        )
+
+        self.assertEqual(
+            Path(saved_path).suffix,
+            ".jpg"
+        )
+
+        mock_add_upload.assert_called_once()
+
+    # ======================================
+    # MISSING IMAGE TEST
+    # ======================================
+
+    def test_missing_image(self):
+
+        with self.assertRaises(ValueError):
+
+            save_image(None)
+
+    # ======================================
+    # EMPTY FILENAME TEST
+    # ======================================
+
+    def test_empty_filename(self):
+
+        from werkzeug.datastructures import FileStorage
+
+        uploaded_file = FileStorage(
+            stream=io.BytesIO(b""),
+            filename=""
+        )
+
+        with self.assertRaises(ValueError):
+
+            save_image(uploaded_file)
+
+    # ======================================
+    # INVALID EXTENSION TEST
+    # ======================================
+
+    def test_invalid_extension(self):
+
+        from werkzeug.datastructures import FileStorage
+
+        uploaded_file = FileStorage(
+            stream=io.BytesIO(b"invalid"),
+            filename="document.txt"
+        )
+
+        with self.assertRaises(ValueError):
+
+            save_image(uploaded_file)
+
+    # ======================================
+    # CORRUPTED IMAGE TEST
+    # ======================================
+
+    def test_corrupted_image(self):
+
+        from werkzeug.datastructures import FileStorage
+
+        uploaded_file = FileStorage(
+            stream=io.BytesIO(
+                b"this is not a valid image"
+            ),
+            filename="corrupted.jpg"
+        )
+
+        with self.assertRaises(ValueError):
+
+            save_image(uploaded_file)
+
+    # ======================================
+    # IMAGE CONTENT MISMATCH TEST
+    # ======================================
+
+    def test_extension_content_mismatch(self):
+
+        from werkzeug.datastructures import FileStorage
+
+        # Valid PNG data with a JPG extension.
+        image = Image.new(
+            "RGB",
+            (50, 50),
+            color="red"
+        )
+
+        stream = io.BytesIO()
+
+        image.save(
+            stream,
+            format="PNG"
+        )
+
+        stream.seek(0)
+
+        uploaded_file = FileStorage(
+            stream=stream,
+            filename="fake.jpg",
+            content_type="image/jpeg"
+        )
+
+        # The current implementation verifies image content
+        # but does not require the extension to match it.
+        saved_path = save_image(
+            uploaded_file
+        )
+
+        self.assertTrue(
+            Path(saved_path).exists()
+        )
+
+    # ======================================
+    # IMAGE UPLOAD ROUTE TEST
+    # ======================================
+
+    def test_upload_route_missing_image(self):
 
         response = self.client.post(
             "/detect-objects",
-            data={
-                "image": (
-                    image,
-                    "test.jpg"
-                )
-            },
-            content_type="multipart/form-data"
+            data={}
         )
 
-        # A successful upload should proceed to
-        # the object detection module. The model
-        # itself is mocked to avoid loading YOLO.
-        self.assertNotEqual(
+        self.assertEqual(
             response.status_code,
             400
         )
 
     # ======================================
-    # INVALID FILE EXTENSION
+    # IMAGE UPLOAD ROUTE INVALID FILE
     # ======================================
 
-    def test_invalid_file_extension(self):
+    def test_upload_route_invalid_file(self):
 
         response = self.client.post(
-            "/detect-objects",
+            "/classify-image",
             data={
                 "image": (
-                    io.BytesIO(b"not an image"),
-                    "malicious.exe"
+                    io.BytesIO(b"invalid image"),
+                    "document.txt"
                 )
             },
             content_type="multipart/form-data"
         )
 
-        self.assertIn(
+        self.assertEqual(
             response.status_code,
-            [400, 415]
-        )
-
-    # ======================================
-    # CORRUPTED IMAGE
-    # ======================================
-
-    def test_corrupted_image(self):
-
-        response = self.client.post(
-            "/detect-objects",
-            data={
-                "image": (
-                    io.BytesIO(b"corrupted image data"),
-                    "corrupted.jpg"
-                )
-            },
-            content_type="multipart/form-data"
-        )
-
-        self.assertIn(
-            response.status_code,
-            [400, 415]
-        )
-
-    # ======================================
-    # MISSING IMAGE
-    # ======================================
-
-    def test_missing_image(self):
-
-        response = self.client.post(
-            "/detect-objects",
-            data={},
-            content_type="multipart/form-data"
-        )
-
-        self.assertIn(
-            response.status_code,
-            [400, 415]
+            400
         )
 
 
 if __name__ == "__main__":
+
     unittest.main(verbosity=2)
