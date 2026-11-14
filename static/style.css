@@ -471,6 +471,129 @@ footer {
     *,
     *::before,
     *::after {
+        
+/* ==================================
+   IRIS ML PREDICTION FORM
+================================== */
+
+#ml-prediction {
+    margin-top: 24px;
+}
+
+#ml-prediction .tool-header {
+    margin-bottom: 22px;
+}
+
+#ml-prediction .tool-tag {
+    display: inline-block;
+    color: #8b7cff;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+}
+
+#ml-prediction .tool-header h2 {
+    color: #ffffff;
+    margin: 0 0 8px;
+}
+
+#ml-prediction .tool-header p {
+    color: #a5a5c5;
+    font-size: 14px;
+}
+
+#ml-prediction .form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+    margin-bottom: 20px;
+}
+
+#ml-prediction .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 18px;
+}
+
+#ml-prediction label {
+    color: #d9d8f5;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+#ml-prediction input,
+#ml-prediction select {
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 46px;
+    padding: 12px 14px;
+    color: #ffffff;
+    background: #15152a;
+    border: 1px solid #34345c;
+    border-radius: 10px;
+    outline: none;
+    font-size: 14px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+#ml-prediction input:focus,
+#ml-prediction select:focus {
+    border-color: #8171ff;
+    box-shadow: 0 0 0 3px rgba(129, 113, 255, 0.15);
+}
+
+#ml-prediction input::placeholder {
+    color: #777792;
+}
+
+#ml-prediction select option {
+    background: #15152a;
+    color: #ffffff;
+}
+
+#ml-prediction .primary-button {
+    min-height: 46px;
+    padding: 12px 22px;
+    color: #ffffff;
+    background: linear-gradient(110deg, #6555e8, #a04cf5);
+    border: none;
+    border-radius: 10px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+#ml-prediction .primary-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(130, 85, 255, 0.25);
+}
+
+#mlPredictionResult {
+    margin-top: 20px;
+    padding: 18px;
+    min-height: 50px;
+    color: #dcdcff;
+    background: rgba(105, 85, 220, 0.08);
+    border: 1px solid rgba(130, 110, 255, 0.3);
+    border-radius: 12px;
+    line-height: 1.8;
+    white-space: pre-line;
+}
+
+/* Mobile layout */
+@media (max-width: 600px) {
+    #ml-prediction .form-grid {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    #ml-prediction .primary-button {
+        width: 100%;
+    }
+}
+
         scroll-behavior: auto !important;
         transition-duration: 0.01ms !important;
     }
