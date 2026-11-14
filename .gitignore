@@ -1,0 +1,73 @@
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Python testing and coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Logs
+*.log
+logs/
+
+# Uploaded images and videos
+data/uploads/*
+data/known_faces/*
+!data/uploads/.gitkeep
+!data/known_faces/.gitkeep
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Downloaded AI model weights
+models/*.pt
+models/*.pth
+models/*.h5
+models/*.keras
+models/*.onnx
+models/*.pb
+models/*.yml
+models/*.joblib
+models/*.pkl
+models/*.bin
+models/*.safetensors
+
+# Hugging Face cache
+.cache/
+.cache/huggingface/
+huggingface_cache/
+
+# TensorFlow cache
+.keras/
+
+# Operating system files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE settings
+.vscode/
+.idea/
+
+# Temporary files
+*.tmp
+*.temp
