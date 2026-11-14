@@ -1,0 +1,95 @@
+
+# ==========================================
+# AI VISION HUB - DOCKER IGNORE
+# ==========================================
+
+# Environment secrets
+.env
+.env.*
+!.env.example
+
+# Git files
+.git
+.gitignore
+.gitattributes
+
+# Python virtual environments
+venv/
+.venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Python packaging
+build/
+dist/
+*.egg-info/
+
+# Testing and coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Operating system files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+logs/
+*.log
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Uploaded images and private biometric data
+data/uploads/*
+!data/uploads/.gitkeep
+
+data/known_faces/*
+!data/known_faces/.gitkeep
+
+# Local datasets
+data/*.csv
+
+# Local model artifacts
+models/*
+!models/.gitkeep
+
+*.pt
+*.pth
+*.h5
+*.keras
+*.joblib
+*.pkl
+*.onnx
+*.pb
+*.tflite
+
+# Model caches
+.cache/
+huggingface/
+.transformers/
+.keras/
+
+# Development reports
+coverage.xml
+report.xml
+
+# Temporary files
+*.tmp
+*.bak
+*.old
