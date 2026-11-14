@@ -1,0 +1,38 @@
+
+# ==========================================
+# AI VISION HUB - RENDER DEPLOYMENT
+# ==========================================
+
+services:
+  - type: web
+    name: ai-vision-hub
+    runtime: docker
+    plan: starter
+
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+
+    healthCheckPath: /health
+
+    autoDeploy: true
+
+    envVars:
+      - key: APP_ENV
+        value: production
+
+      - key: DEBUG
+        value: "false"
+
+      - key: SECRET_KEY
+        generateValue: true
+
+      - key: COOKIE_SECURE
+        value: "true"
+
+      - key: PORT
+        value: "10000"
+
+    disk:
+      name: ai-vision-hub-storage
+      mountPath: /app/data
+      sizeGB: 1
