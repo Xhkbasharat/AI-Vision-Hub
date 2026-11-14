@@ -1,219 +1,369 @@
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#080b18">
 
-    <title>AI Vision Hub</title>
+    <meta name="description"
+          content="AI Vision Hub - All-in-one artificial intelligence and machine learning platform">
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <title>AI Vision Hub | AI Control Center</title>
 
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Orbitron:wght@500;600;700&display=swap" rel="stylesheet">
-
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
 </head>
 
 <body>
 
 <div class="app-container">
 
-    <!-- SIDEBAR -->
+    <!-- ================= SIDEBAR ================= -->
+
     <aside class="sidebar">
 
         <div class="brand">
-            <div class="brand-icon">AI</div>
+            <div class="brand-icon">◈</div>
+
             <div>
-                <h2>VISION HUB</h2>
-                <span>INTELLIGENCE PLATFORM</span>
+                <h2>AI VISION</h2>
+                <span>HUB PLATFORM</span>
             </div>
         </div>
 
-        <nav class="sidebar-nav">
-            <a href="#dashboard">Dashboard</a>
-            <a href="#computer-vision">Computer Vision</a>
-            <a href="#machine-learning">Machine Learning</a>
-            <a href="#nlp">Language AI</a>
-            <a href="#chatbot-section">AI Chatbot</a>
-        </nav>
+        <div class="sidebar-section">
+
+            <p class="sidebar-label">WORKSPACE</p>
+
+            <a href="#dashboard" class="nav-link active">
+                <span>◫</span> Dashboard
+            </a>
+
+            <a href="#computer-vision" class="nav-link">
+                <span>◎</span> Computer Vision
+            </a>
+
+            <a href="#machine-learning" class="nav-link">
+                <span>⌘</span> Machine Learning
+            </a>
+
+            <a href="#nlp" class="nav-link">
+                <span>◉</span> NLP & Text AI
+            </a>
+
+            <a href="#chatbot" class="nav-link">
+                <span>✧</span> AI Chatbot
+            </a>
+
+            <a href="#history" class="nav-link">
+                <span>▤</span> Analysis History
+            </a>
+
+        </div>
 
         <div class="sidebar-footer">
-            <span class="status-dot"></span>
-            AI SYSTEM READY
+            <div class="status-indicator"></div>
+            <span>AI SYSTEM READY</span>
         </div>
 
     </aside>
 
 
-    <!-- MAIN CONTENT -->
+    <!-- ================= MAIN CONTENT ================= -->
+
     <main class="main-content">
 
-        <!-- TOP HEADER -->
-        <header class="topbar" id="dashboard">
+        <!-- TOP BAR -->
+
+        <header class="topbar">
 
             <div>
-                <span class="eyebrow">ARTIFICIAL INTELLIGENCE PLATFORM</span>
-                <h1>AI Vision Hub</h1>
-                <p>One platform. Multiple AI capabilities.</p>
+                <p class="breadcrumb">WORKSPACE / OVERVIEW</p>
+                <h1>AI Control Center</h1>
             </div>
 
-            <div class="version-label">
-                VERSION 1.0.0
+            <div class="topbar-right">
+
+                <span class="system-status">
+                    <span class="status-indicator"></span>
+                    System Online
+                </span>
+
+                <div class="profile-icon">AI</div>
+
             </div>
 
         </header>
 
 
-        <!-- STATISTICS -->
-        <section class="stats-grid">
+        <!-- ================= DASHBOARD ================= -->
 
-            <div class="stat-card">
-                <span class="stat-label">TOTAL UPLOADS</span>
-                <h2>{{ stats.get('total_uploads', 0) }}</h2>
-                <span class="stat-description">Images processed</span>
+        <section id="dashboard" class="dashboard-section">
+
+            <div class="welcome-panel">
+
+                <div>
+                    <span class="eyebrow">
+                        INTELLIGENCE PLATFORM
+                    </span>
+
+                    <h2>Welcome to AI Vision Hub</h2>
+
+                    <p>
+                        Explore computer vision, machine learning,
+                        natural language processing and intelligent
+                        automation from one workspace.
+                    </p>
+                </div>
+
+                <div class="welcome-symbol">◈</div>
+
             </div>
 
-            <div class="stat-card">
-                <span class="stat-label">REGISTERED FACES</span>
-                <h2>{{ stats.get('registered_faces', 0) }}</h2>
-                <span class="stat-description">Distinct registered names</span>
-            </div>
 
-            <div class="stat-card">
-                <span class="stat-label">AI ANALYSES</span>
-                <h2>{{ stats.get('total_analyses', 0) }}</h2>
-                <span class="stat-description">Saved analysis records</span>
+            <!-- STATISTICS -->
+
+            <div class="stats-grid">
+
+                <div class="stat-card">
+                    <span>Total Uploads</span>
+
+                    <h2>
+                        {{ stats.get('total_uploads', 0) }}
+                    </h2>
+
+                    <p>Images processed</p>
+                </div>
+
+                <div class="stat-card">
+                    <span>Registered Faces</span>
+
+                    <h2>
+                        {{ stats.get('registered_faces', 0) }}
+                    </h2>
+
+                    <p>Unique registered people</p>
+                </div>
+
+                <div class="stat-card">
+                    <span>Total Analyses</span>
+
+                    <h2>
+                        {{ stats.get('total_analyses', 0) }}
+                    </h2>
+
+                    <p>AI operations recorded</p>
+                </div>
+
             </div>
 
         </section>
 
 
-        <!-- COMPUTER VISION -->
-        <section class="dashboard-section" id="computer-vision">
+        <!-- ================= COMPUTER VISION ================= -->
+
+        <section id="computer-vision" class="content-section">
 
             <div class="section-heading">
-                <span class="section-tag">01 / COMPUTER VISION</span>
-                <h2>Vision Intelligence</h2>
-                <p>Analyze images using computer vision and deep learning.</p>
+
+                <span class="eyebrow">
+                    01 / COMPUTER VISION
+                </span>
+
+                <h2>Visual Intelligence</h2>
+
+                <p>
+                    Analyze images using deep learning and
+                    computer vision.
+                </p>
+
             </div>
 
 
-            <div class="tools-grid">
+            <div class="tool-grid">
 
                 <!-- OBJECT DETECTION -->
+
                 <div class="tool-card">
 
-                    <span class="tool-tag">YOLO</span>
+                    <div class="tool-icon">◎</div>
+
                     <h3>Object Detection</h3>
-                    <p>Identify and locate objects in an image.</p>
 
-                    <form class="api-form" data-endpoint="/detect-objects" data-type="image">
+                    <p>
+                        Identify and locate objects in images using YOLO.
+                    </p>
+
+                    <form class="api-form"
+                          action="/detect-objects"
+                          method="POST"
+                          enctype="multipart/form-data"
+                          data-type="image">
+
                         <label>Select image</label>
-                        <input type="file" name="image" accept="image/jpeg,image/png,image/webp" required>
 
-                        <button type="submit" class="primary-button">
+                        <input type="file"
+                               name="image"
+                               accept="image/jpeg,image/png,image/webp"
+                               required>
+
+                        <button type="submit">
                             Detect Objects
                         </button>
-                    </form>
 
-                    <div class="result-box" aria-live="polite">
-                        Results will appear here.
-                    </div>
+                        <div class="result-box"
+                             aria-live="polite"></div>
+
+                    </form>
 
                 </div>
 
 
                 <!-- IMAGE CLASSIFICATION -->
+
                 <div class="tool-card">
 
-                    <span class="tool-tag">MOBILENETV2</span>
+                    <div class="tool-icon">▧</div>
+
                     <h3>Image Classification</h3>
-                    <p>Classify an image using the ImageNet model.</p>
 
-                    <form class="api-form" data-endpoint="/classify-image" data-type="image">
+                    <p>
+                        Classify image content using MobileNetV2.
+                    </p>
+
+                    <form class="api-form"
+                          action="/classify-image"
+                          method="POST"
+                          enctype="multipart/form-data"
+                          data-type="image">
+
                         <label>Select image</label>
-                        <input type="file" name="image" accept="image/jpeg,image/png,image/webp" required>
 
-                        <button type="submit" class="primary-button">
+                        <input type="file"
+                               name="image"
+                               accept="image/jpeg,image/png,image/webp"
+                               required>
+
+                        <button type="submit">
                             Classify Image
                         </button>
-                    </form>
 
-                    <div class="result-box" aria-live="polite">
-                        Results will appear here.
-                    </div>
+                        <div class="result-box"
+                             aria-live="polite"></div>
+
+                    </form>
 
                 </div>
 
 
                 <!-- FACE REGISTRATION -->
+
                 <div class="tool-card">
 
-                    <span class="tool-tag">OPENCV LBPH</span>
-                    <h3>Face Registration</h3>
-                    <p>Register a person's face with their consent.</p>
+                    <div class="tool-icon">◉</div>
 
-                    <form class="api-form" data-endpoint="/register-face" data-type="image">
+                    <h3>Face Registration</h3>
+
+                    <p>
+                        Register face images with the recognition system.
+                        Only use images with appropriate consent.
+                    </p>
+
+                    <form class="api-form"
+                          action="/register-face"
+                          method="POST"
+                          enctype="multipart/form-data"
+                          data-type="image">
+
                         <label>Person name</label>
-                        <input type="text" name="person_name" maxlength="50" placeholder="Enter person name" required>
+
+                        <input type="text"
+                               name="person_name"
+                               maxlength="50"
+                               placeholder="Enter person's name"
+                               required>
 
                         <label>Select face image</label>
-                        <input type="file" name="image" accept="image/jpeg,image/png,image/webp" required>
 
-                        <button type="submit" class="primary-button">
+                        <input type="file"
+                               name="image"
+                               accept="image/jpeg,image/png,image/webp"
+                               required>
+
+                        <button type="submit">
                             Register Face
                         </button>
-                    </form>
 
-                    <div class="result-box" aria-live="polite">
-                        Registration result will appear here.
-                    </div>
+                        <div class="result-box"
+                             aria-live="polite"></div>
+
+                    </form>
 
                 </div>
 
 
                 <!-- FACE TRAINING -->
+
                 <div class="tool-card">
 
-                    <span class="tool-tag">FACE MODEL</span>
-                    <h3>Train Face Model</h3>
-                    <p>Train the recognizer using registered face images.</p>
+                    <div class="tool-icon">⌁</div>
 
-                    <button
-                        type="button"
-                        class="primary-button action-button"
-                        data-endpoint="/train-faces"
-                    >
+                    <h3>Face Model Training</h3>
+
+                    <p>
+                        Train the face recognition model using
+                        registered images.
+                    </p>
+
+                    <button class="action-button"
+                            type="button"
+                            data-action="/train-faces">
+
                         Train Face Model
+
                     </button>
 
-                    <div class="result-box" aria-live="polite">
-                        Training result will appear here.
-                    </div>
+                    <div class="result-box"
+                         aria-live="polite"></div>
 
                 </div>
 
 
                 <!-- FACE RECOGNITION -->
+
                 <div class="tool-card">
 
-                    <span class="tool-tag">FACE RECOGNITION</span>
-                    <h3>Recognize Face</h3>
-                    <p>Compare a face against the registered dataset.</p>
+                    <div class="tool-icon">◌</div>
 
-                    <form class="api-form" data-endpoint="/recognize-face" data-type="image">
-                        <label>Select image</label>
-                        <input type="file" name="image" accept="image/jpeg,image/png,image/webp" required>
+                    <h3>Face Recognition</h3>
 
-                        <button type="submit" class="primary-button">
+                    <p>
+                        Compare an uploaded face with registered samples.
+                    </p>
+
+                    <form class="api-form"
+                          action="/recognize-face"
+                          method="POST"
+                          enctype="multipart/form-data"
+                          data-type="image">
+
+                        <label>Select face image</label>
+
+                        <input type="file"
+                               name="image"
+                               accept="image/jpeg,image/png,image/webp"
+                               required>
+
+                        <button type="submit">
                             Recognize Face
                         </button>
-                    </form>
 
-                    <div class="result-box" aria-live="polite">
-                        Recognition result will appear here.
-                    </div>
+                        <div class="result-box"
+                             aria-live="polite"></div>
+
+                    </form>
 
                 </div>
 
@@ -222,136 +372,204 @@
         </section>
 
 
-        <!-- MACHINE LEARNING -->
-        <section class="dashboard-section" id="machine-learning">
+        <!-- ================= MACHINE LEARNING ================= -->
+
+        <section id="machine-learning" class="content-section">
 
             <div class="section-heading">
-                <span class="section-tag">02 / MACHINE LEARNING</span>
+
+                <span class="eyebrow">
+                    02 / MACHINE LEARNING
+                </span>
+
                 <h2>Predictive Intelligence</h2>
-                <p>Explore classical machine-learning algorithms.</p>
+
+                <p>
+                    Run supervised machine learning predictions.
+                </p>
+
             </div>
 
-            <div class="tool-card" id="ml-prediction">
 
-                <div class="tool-header">
-                    <span class="tool-tag">IRIS CLASSIFICATION</span>
-                    <h3>Flower Species Prediction</h3>
-                    <p>Enter four flower measurements in centimetres.</p>
-                </div>
+            <div class="tool-card wide-card">
 
-                <form id="mlPredictionForm" class="tool-form">
+                <div class="tool-icon">⌘</div>
 
-                    <div class="form-grid">
+                <h3>Iris Flower Prediction</h3>
 
-                        <div class="form-group">
-                            <label for="sepalLength">Sepal length (cm)</label>
-                            <input type="number" id="sepalLength" name="sepal_length" min="0.1" max="10" step="0.1" placeholder="5.1" required>
+                <p>
+                    Enter four flower measurements to predict
+                    the Iris species.
+                </p>
+
+                <form id="ml-form">
+
+                    <div class="input-grid">
+
+                        <div>
+                            <label>Sepal Length</label>
+
+                            <input type="number"
+                                   name="sepal_length"
+                                   step="any"
+                                   min="0"
+                                   required>
                         </div>
 
-                        <div class="form-group">
-                            <label for="sepalWidth">Sepal width (cm)</label>
-                            <input type="number" id="sepalWidth" name="sepal_width" min="0.1" max="10" step="0.1" placeholder="3.5" required>
+                        <div>
+                            <label>Sepal Width</label>
+
+                            <input type="number"
+                                   name="sepal_width"
+                                   step="any"
+                                   min="0"
+                                   required>
                         </div>
 
-                        <div class="form-group">
-                            <label for="petalLength">Petal length (cm)</label>
-                            <input type="number" id="petalLength" name="petal_length" min="0.1" max="10" step="0.1" placeholder="1.4" required>
+                        <div>
+                            <label>Petal Length</label>
+
+                            <input type="number"
+                                   name="petal_length"
+                                   step="any"
+                                   min="0"
+                                   required>
                         </div>
 
-                        <div class="form-group">
-                            <label for="petalWidth">Petal width (cm)</label>
-                            <input type="number" id="petalWidth" name="petal_width" min="0.1" max="10" step="0.1" placeholder="0.2" required>
+                        <div>
+                            <label>Petal Width</label>
+
+                            <input type="number"
+                                   name="petal_width"
+                                   step="any"
+                                   min="0"
+                                   required>
                         </div>
 
                     </div>
 
-                    <div class="form-group">
-                        <label for="mlModel">Choose algorithm</label>
+                    <label>Prediction Model</label>
 
-                        <select id="mlModel" name="model">
-                            <option value="random_forest">Random Forest</option>
-                            <option value="xgboost">XGBoost</option>
-                        </select>
-                    </div>
+                    <select name="model">
 
-                    <button type="submit" class="primary-button">
-                        Predict Flower
+                        <option value="random_forest">
+                            Random Forest
+                        </option>
+
+                        <option value="xgboost">
+                            XGBoost
+                        </option>
+
+                    </select>
+
+                    <button type="submit">
+                        Run Prediction
                     </button>
+
+                    <div class="result-box"
+                         id="ml-result"
+                         aria-live="polite"></div>
 
                 </form>
 
-                <div id="mlPredictionResult" class="result-box" aria-live="polite">
-                    Your prediction will appear here.
-                </div>
-
             </div>
 
         </section>
 
 
-        <!-- NLP -->
-        <section class="dashboard-section" id="nlp">
+        <!-- ================= NLP ================= -->
+
+        <section id="nlp" class="content-section">
 
             <div class="section-heading">
-                <span class="section-tag">03 / NATURAL LANGUAGE PROCESSING</span>
-                <h2>Language Intelligence</h2>
-                <p>Analyze text and explore language models.</p>
+
+                <span class="eyebrow">
+                    03 / NATURAL LANGUAGE PROCESSING
+                </span>
+
+                <h2>Text Intelligence</h2>
+
+                <p>
+                    Analyze text using transformer-based AI models.
+                </p>
+
             </div>
 
-            <div class="tools-grid">
 
-                <!-- SENTIMENT -->
+            <div class="tool-grid">
+
+                <!-- SENTIMENT ANALYSIS -->
+
                 <div class="tool-card">
 
-                    <span class="tool-tag">DISTILBERT</span>
-                    <h3>Sentiment Analysis</h3>
-                    <p>Analyze whether text expresses positive or negative sentiment.</p>
+                    <div class="tool-icon">◉</div>
 
-                    <form class="api-form" data-endpoint="/sentiment" data-type="json">
+                    <h3>Sentiment Analysis</h3>
+
+                    <p>
+                        Determine whether text expresses
+                        positive or negative sentiment.
+                    </p>
+
+                    <form class="api-form"
+                          action="/sentiment"
+                          method="POST"
+                          data-type="json">
 
                         <label>Enter text</label>
 
-                        <textarea name="text" maxlength="5000" placeholder="Enter text to analyze..." required></textarea>
+                        <textarea name="text"
+                                  rows="5"
+                                  maxlength="5000"
+                                  placeholder="Write something to analyze..."
+                                  required></textarea>
 
-                        <button type="submit" class="primary-button">
+                        <button type="submit">
                             Analyze Sentiment
                         </button>
 
-                    </form>
+                        <div class="result-box"
+                             aria-live="polite"></div>
 
-                    <div class="result-box" aria-live="polite">
-                        Sentiment result will appear here.
-                    </div>
+                    </form>
 
                 </div>
 
 
                 <!-- FAKE NEWS -->
+
                 <div class="tool-card">
 
-                    <span class="tool-tag">TF-IDF + LOGISTIC REGRESSION</span>
-                    <h3>Fake News Classification</h3>
-                    <p>Classify text using a trained labelled dataset.</p>
+                    <div class="tool-icon">▤</div>
 
-                    <form class="api-form" data-endpoint="/fake-news" data-type="json">
+                    <h3>Fake News Detection</h3>
 
-                        <label>Enter news text</label>
+                    <p>
+                        Classify article text using a trained
+                        machine learning model.
+                    </p>
 
-                        <textarea name="text" maxlength="10000" placeholder="Paste a news article or headline..." required></textarea>
+                    <form class="api-form"
+                          action="/fake-news"
+                          method="POST"
+                          data-type="json">
 
-                        <button type="submit" class="primary-button">
-                            Analyze News
+                        <label>Enter article</label>
+
+                        <textarea name="text"
+                                  rows="5"
+                                  maxlength="10000"
+                                  placeholder="Paste article text..."
+                                  required></textarea>
+
+                        <button type="submit">
+                            Analyze Article
                         </button>
 
+                        <div class="result-box"
+                             aria-live="polite"></div>
+
                     </form>
-
-                    <div class="result-box" aria-live="polite">
-                        Classification result will appear here.
-                    </div>
-
-                    <p class="small-note">
-                        This classifier does not independently fact-check news claims.
-                    </p>
 
                 </div>
 
@@ -360,60 +578,130 @@
         </section>
 
 
-        <!-- CHATBOT -->
-        <section class="dashboard-section" id="chatbot-section">
+        <!-- ================= CHATBOT ================= -->
+
+        <section id="chatbot" class="content-section">
 
             <div class="section-heading">
-                <span class="section-tag">04 / CONVERSATIONAL AI</span>
+
+                <span class="eyebrow">
+                    04 / CONVERSATIONAL AI
+                </span>
+
                 <h2>AI Assistant</h2>
-                <p>Chat with the DialoGPT conversational model.</p>
+
+                <p>
+                    Interact with the conversational AI model.
+                </p>
+
             </div>
+
 
             <div class="tool-card chatbot-card">
 
-                <span class="tool-tag">DIALOGPT SMALL</span>
-                <h3>AI Chatbot</h3>
+                <div class="chat-header">
 
-                <div id="chatMessages" class="chat-messages" aria-live="polite">
-                    <div class="chat-message assistant-message">
-                        Hello! Welcome to AI Vision Hub. How can I help?
+                    <div class="tool-icon">✧</div>
+
+                    <div>
+                        <h3>AI Vision Assistant</h3>
+
+                        <span class="chat-status">
+                            Assistant available
+                        </span>
                     </div>
+
                 </div>
 
-                <form id="chatForm" class="chat-form">
 
-                    <input
-                        type="text"
-                        id="chatInput"
-                        name="message"
-                        maxlength="1000"
-                        placeholder="Type your message..."
-                        required
-                    >
+                <div id="chat-messages"
+                     class="chat-messages"
+                     aria-live="polite">
 
-                    <button type="submit" class="primary-button">
+                    <div class="chat-message assistant-message">
+                        Hello! Welcome to AI Vision Hub.
+                        How can I help you?
+                    </div>
+
+                </div>
+
+
+                <form id="chat-form">
+
+                    <input type="text"
+                           name="message"
+                           maxlength="1000"
+                           placeholder="Ask the AI assistant..."
+                           autocomplete="off"
+                           required>
+
+                    <button type="submit">
                         Send
+                    </button>
+
+                    <button type="button"
+                            id="reset-chat"
+                            class="secondary-button">
+
+                        Reset
+
                     </button>
 
                 </form>
 
-                <button
-                    type="button"
-                    id="resetChatButton"
-                    class="secondary-button"
-                >
-                    Reset Conversation
+            </div>
+
+        </section>
+
+
+        <!-- ================= HISTORY ================= -->
+
+        <section id="history" class="content-section">
+
+            <div class="section-heading">
+
+                <span class="eyebrow">
+                    05 / ACTIVITY
+                </span>
+
+                <h2>Analysis History</h2>
+
+                <p>
+                    Review previously recorded AI operations.
+                </p>
+
+            </div>
+
+
+            <div class="tool-card">
+
+                <button type="button"
+                        id="load-history">
+
+                    Load Analysis History
+
                 </button>
+
+                <div id="history-results"
+                     class="result-box"
+                     aria-live="polite"></div>
 
             </div>
 
         </section>
 
 
-        <!-- FOOTER -->
-        <footer class="dashboard-footer">
-            <p>AI Vision Hub © 2026</p>
-            <span>One Platform. Multiple AI Capabilities.</span>
+        <!-- ================= FOOTER ================= -->
+
+        <footer class="footer">
+
+            <p>
+                AI Vision Hub © 2026
+                <span>Built with Artificial Intelligence</span>
+            </p>
+
+            <span>Version 1.0.0</span>
+
         </footer>
 
     </main>
@@ -421,352 +709,498 @@
 </div>
 
 
-<!-- DASHBOARD JAVASCRIPT -->
+<!-- ================= JAVASCRIPT ================= -->
+
 <script>
 
-    // ======================================
-    // DISPLAY SAFE RESULTS
-    // ======================================
+"use strict";
 
-    function displayResult(element, data) {
 
-        element.textContent = "";
+// ==========================================
+// DISPLAY RESULTS SAFELY
+// ==========================================
 
-        const output = document.createElement("pre");
+function displayResult(container, data) {
 
-        output.textContent = JSON.stringify(
-            data,
-            null,
-            2
+    container.replaceChildren();
+
+    const pre = document.createElement("pre");
+
+    pre.textContent = JSON.stringify(
+        data,
+        null,
+        2
+    );
+
+    container.appendChild(pre);
+
+}
+
+
+// ==========================================
+// API RESPONSE HANDLING
+// ==========================================
+
+async function readResponse(response) {
+
+    let data;
+
+    try {
+
+        data = await response.json();
+
+    } catch {
+
+        throw new Error(
+            "The server returned an invalid response."
         );
 
-        element.appendChild(output);
     }
 
+    if (!response.ok || !data.success) {
 
-    // ======================================
-    // GENERIC API FORM HANDLER
-    // ======================================
+        const message =
+            data.error?.message ||
+            data.error ||
+            "Request failed.";
 
-    document.querySelectorAll(".api-form").forEach(form => {
+        throw new Error(message);
 
-        form.addEventListener("submit", async event => {
+    }
 
-            event.preventDefault();
+    return data;
 
-            const resultBox = form.parentElement.querySelector(".result-box");
-            const button = form.querySelector("button[type='submit']");
+}
 
-            const endpoint = form.dataset.endpoint;
-            const type = form.dataset.type;
 
-            button.disabled = true;
-            resultBox.textContent = "Processing...";
+// ==========================================
+// GENERIC FORM HANDLER
+// ==========================================
 
-            try {
+document.querySelectorAll(".api-form").forEach(form => {
 
-                let response;
+    form.addEventListener("submit", async event => {
 
-                if (type === "image") {
+        event.preventDefault();
 
-                    const formData = new FormData(form);
+        const button = form.querySelector(
+            'button[type="submit"]'
+        );
 
-                    response = await fetch(endpoint, {
+        const resultBox = form.querySelector(
+            ".result-box"
+        );
+
+        const originalText = button.textContent;
+
+        button.disabled = true;
+
+        button.textContent = "Processing...";
+
+        resultBox.textContent =
+            "Processing your request...";
+
+        try {
+
+            let response;
+
+            if (form.dataset.type === "image") {
+
+                const formData = new FormData(form);
+
+                response = await fetch(
+                    form.action,
+                    {
                         method: "POST",
                         body: formData
-                    });
+                    }
+                );
 
-                } else {
+            } else {
 
-                    const formData = new FormData(form);
+                const formData = new FormData(form);
 
-                    const payload = {
-                        text: formData.get("text")
-                    };
+                const payload = {};
 
-                    response = await fetch(endpoint, {
+                formData.forEach((value, key) => {
+                    payload[key] = value;
+                });
+
+                response = await fetch(
+                    form.action,
+                    {
                         method: "POST",
                         headers: {
                             "Content-Type": "application/json"
                         },
                         body: JSON.stringify(payload)
-                    });
-
-                }
-
-                const data = await response.json();
-
-                if (!response.ok) {
-                    throw new Error(data.error || "Request failed.");
-                }
-
-                displayResult(resultBox, data);
-
-            } catch (error) {
-
-                resultBox.textContent = "Error: " + error.message;
-
-            } finally {
-
-                button.disabled = false;
-
-            }
-
-        });
-
-    });
-
-
-    // ======================================
-    // FACE TRAINING BUTTON
-    // ======================================
-
-    document.querySelectorAll(".action-button").forEach(button => {
-
-        button.addEventListener("click", async () => {
-
-            const resultBox = button.parentElement.querySelector(".result-box");
-
-            button.disabled = true;
-            resultBox.textContent = "Training face model...";
-
-            try {
-
-                const response = await fetch(
-                    button.dataset.endpoint,
-                    {
-                        method: "POST"
                     }
                 );
 
-                const data = await response.json();
-
-                if (!response.ok) {
-                    throw new Error(data.error || "Training failed.");
-                }
-
-                displayResult(resultBox, data);
-
-            } catch (error) {
-
-                resultBox.textContent = "Error: " + error.message;
-
-            } finally {
-
-                button.disabled = false;
-
             }
 
-        });
+            const data = await readResponse(response);
+
+            displayResult(
+                resultBox,
+                data.result
+            );
+
+        } catch (error) {
+
+            resultBox.textContent =
+                error.message;
+
+        } finally {
+
+            button.disabled = false;
+
+            button.textContent = originalText;
+
+        }
 
     });
 
+});
 
-    // ======================================
-    // IRIS ML PREDICTION
-    // ======================================
 
-    document
-        .getElementById("mlPredictionForm")
-        .addEventListener("submit", async event => {
+// ==========================================
+// FACE TRAINING
+// ==========================================
 
-            event.preventDefault();
+document.querySelectorAll("[data-action]").forEach(button => {
 
-            const form = event.currentTarget;
+    button.addEventListener("click", async () => {
 
-            const result = document.getElementById(
-                "mlPredictionResult"
+        const card = button.closest(".tool-card");
+
+        const resultBox = card.querySelector(
+            ".result-box"
+        );
+
+        button.disabled = true;
+
+        button.textContent = "Training...";
+
+        resultBox.textContent =
+            "Training face recognition model...";
+
+        try {
+
+            const response = await fetch(
+                button.dataset.action,
+                {
+                    method: "POST"
+                }
             );
 
+            const data = await readResponse(response);
+
+            displayResult(
+                resultBox,
+                data.result
+            );
+
+        } catch (error) {
+
+            resultBox.textContent =
+                error.message;
+
+        } finally {
+
+            button.disabled = false;
+
+            button.textContent =
+                "Train Face Model";
+
+        }
+
+    });
+
+});
+
+
+// ==========================================
+// MACHINE LEARNING FORM
+// ==========================================
+
+document.getElementById("ml-form").addEventListener(
+    "submit",
+    async event => {
+
+        event.preventDefault();
+
+        const form = event.currentTarget;
+
+        const resultBox = document.getElementById(
+            "ml-result"
+        );
+
+        const button = form.querySelector(
+            'button[type="submit"]'
+        );
+
+        button.disabled = true;
+
+        button.textContent = "Predicting...";
+
+        try {
+
+            const formData = new FormData(form);
+
             const values = [
-                Number(form.elements.sepal_length.value),
-                Number(form.elements.sepal_width.value),
-                Number(form.elements.petal_length.value),
-                Number(form.elements.petal_width.value)
+                Number(formData.get("sepal_length")),
+                Number(formData.get("sepal_width")),
+                Number(formData.get("petal_length")),
+                Number(formData.get("petal_width"))
             ];
 
-            if (values.some(
-                value => !Number.isFinite(value) || value <= 0
-            )) {
-                result.textContent = "Enter four valid positive measurements.";
-                return;
-            }
+            const payload = {
+                values: values,
+                model: formData.get("model")
+            };
 
-            result.textContent = "Analyzing flower measurements...";
-
-            try {
-
-                const response = await fetch("/ml-prediction", {
-
+            const response = await fetch(
+                "/ml-prediction",
+                {
                     method: "POST",
-
                     headers: {
                         "Content-Type": "application/json"
                     },
-
-                    body: JSON.stringify({
-                        values: values,
-                        model: form.elements.model.value
-                    })
-
-                });
-
-                const data = await response.json();
-
-                if (!response.ok) {
-                    throw new Error(data.error || "Prediction failed.");
+                    body: JSON.stringify(payload)
                 }
+            );
 
-                displayResult(result, data);
+            const data = await readResponse(response);
 
-            } catch (error) {
+            displayResult(
+                resultBox,
+                data.result
+            );
 
-                result.textContent = "Error: " + error.message;
+        } catch (error) {
 
-            }
+            resultBox.textContent =
+                error.message;
 
-        });
+        } finally {
+
+            button.disabled = false;
+
+            button.textContent =
+                "Run Prediction";
+
+        }
+
+    }
+);
 
 
-    // ======================================
-    // CHATBOT MESSAGE DISPLAY
-    // ======================================
+// ==========================================
+// CHATBOT
+// ==========================================
 
-    function addChatMessage(message, sender) {
+const chatForm = document.getElementById(
+    "chat-form"
+);
 
-        const chatMessages = document.getElementById(
-            "chatMessages"
+const chatMessages = document.getElementById(
+    "chat-messages"
+);
+
+
+function addChatMessage(message, sender) {
+
+    const element = document.createElement("div");
+
+    element.className =
+        "chat-message " +
+        (
+            sender === "user"
+                ? "user-message"
+                : "assistant-message"
         );
 
-        const messageElement = document.createElement("div");
+    element.textContent = message;
 
-        messageElement.className =
-            sender === "user"
-                ? "chat-message user-message"
-                : "chat-message assistant-message";
+    chatMessages.appendChild(element);
 
-        messageElement.textContent = message;
+    chatMessages.scrollTop =
+        chatMessages.scrollHeight;
 
-        chatMessages.appendChild(messageElement);
-
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-    }
+}
 
 
-    // ======================================
-    // CHATBOT FORM
-    // ======================================
+chatForm.addEventListener(
+    "submit",
+    async event => {
 
-    document
-        .getElementById("chatForm")
-        .addEventListener("submit", async event => {
+        event.preventDefault();
 
-            event.preventDefault();
+        const input = chatForm.elements.message;
 
-            const form = event.currentTarget;
+        const message = input.value.trim();
 
-            const input = document.getElementById("chatInput");
+        if (!message) return;
 
-            const message = input.value.trim();
+        addChatMessage(
+            message,
+            "user"
+        );
 
-            if (!message) {
-                return;
-            }
+        input.value = "";
 
-            const button = form.querySelector("button");
+        const button = chatForm.querySelector(
+            'button[type="submit"]'
+        );
 
-            addChatMessage(message, "user");
+        button.disabled = true;
 
-            input.value = "";
+        try {
 
-            button.disabled = true;
+            const formData = new FormData();
 
-            addChatMessage("Thinking...", "assistant");
-
-            const chatMessages = document.getElementById(
-                "chatMessages"
+            formData.append(
+                "message",
+                message
             );
 
-            const temporaryMessage = chatMessages.lastElementChild;
-
-            try {
-
-                const formData = new FormData();
-
-                formData.append("message", message);
-
-                const response = await fetch("/chatbot", {
+            const response = await fetch(
+                "/chatbot",
+                {
                     method: "POST",
                     body: formData
-                });
-
-                const data = await response.json();
-
-                if (!response.ok) {
-                    throw new Error(data.error || "Chatbot request failed.");
                 }
-
-                temporaryMessage.textContent =
-                    data.response || "No response received.";
-
-            } catch (error) {
-
-                temporaryMessage.textContent =
-                    "Error: " + error.message;
-
-            } finally {
-
-                button.disabled = false;
-                chatMessages.scrollTop = chatMessages.scrollHeight;
-
-            }
-
-        });
-
-
-    // ======================================
-    // RESET CHAT
-    // ======================================
-
-    document
-        .getElementById("resetChatButton")
-        .addEventListener("click", async () => {
-
-            const chatMessages = document.getElementById(
-                "chatMessages"
             );
 
-            try {
+            const data = await readResponse(response);
 
-                const response = await fetch("/reset-chat", {
+            const result = data.result;
+
+            addChatMessage(
+                result.response || "No response generated.",
+                "assistant"
+            );
+
+        } catch (error) {
+
+            addChatMessage(
+                error.message,
+                "assistant"
+            );
+
+        } finally {
+
+            button.disabled = false;
+
+            input.focus();
+
+        }
+
+    }
+);
+
+
+// ==========================================
+// RESET CHAT
+// ==========================================
+
+document.getElementById("reset-chat").addEventListener(
+    "click",
+    async () => {
+
+        try {
+
+            const response = await fetch(
+                "/reset-chat",
+                {
                     method: "POST"
-                });
-
-                const data = await response.json();
-
-                if (!response.ok) {
-                    throw new Error(data.error || "Could not reset chat.");
                 }
+            );
 
-                chatMessages.innerHTML = "";
+            await readResponse(response);
 
-                addChatMessage(
-                    "Conversation reset. How can I help?",
-                    "assistant"
-                );
+            chatMessages.replaceChildren();
 
-            } catch (error) {
+            addChatMessage(
+                "Conversation reset. How can I help?",
+                "assistant"
+            );
 
-                addChatMessage(
-                    "Error: " + error.message,
-                    "assistant"
-                );
+        } catch (error) {
 
-            }
+            addChatMessage(
+                error.message,
+                "assistant"
+            );
+
+        }
+
+    }
+);
+
+
+// ==========================================
+// ANALYSIS HISTORY
+// ==========================================
+
+document.getElementById("load-history").addEventListener(
+    "click",
+    async () => {
+
+        const resultBox = document.getElementById(
+            "history-results"
+        );
+
+        resultBox.textContent =
+            "Loading analysis history...";
+
+        try {
+
+            const response = await fetch(
+                "/analysis-history?limit=50"
+            );
+
+            const data = await readResponse(response);
+
+            displayResult(
+                resultBox,
+                data.result
+            );
+
+        } catch (error) {
+
+            resultBox.textContent =
+                error.message;
+
+        }
+
+    }
+);
+
+
+// ==========================================
+// NAVIGATION ACTIVE STATE
+// ==========================================
+
+document.querySelectorAll(".nav-link").forEach(link => {
+
+    link.addEventListener("click", () => {
+
+        document.querySelectorAll(".nav-link").forEach(item => {
+
+            item.classList.remove("active");
 
         });
+
+        link.classList.add("active");
+
+    });
+
+});
 
 </script>
 
 </body>
+
 </html>
