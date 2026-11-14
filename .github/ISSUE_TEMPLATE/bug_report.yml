@@ -1,0 +1,100 @@
+
+name: 🐛 Bug Report
+description: Report a bug or unexpected behavior in AI Vision Hub.
+title: "[BUG]: "
+labels:
+  - bug
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting a problem with AI Vision Hub.
+        Please provide accurate details so the issue can be investigated.
+
+  - type: dropdown
+    id: module
+    attributes:
+      label: Affected Module
+      description: Which part of AI Vision Hub is affected?
+      options:
+        - Face Recognition
+        - Object Detection
+        - Image Classification
+        - Machine Learning Prediction
+        - Sentiment Analysis
+        - Fake News Detection
+        - AI Chatbot
+        - Dashboard
+        - Database
+        - Image Upload
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: bug_description
+    attributes:
+      label: Bug Description
+      description: Explain what happened.
+      placeholder: Describe the issue clearly.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to Reproduce
+      description: List the steps required to reproduce the issue.
+      placeholder: |
+        1. Open AI Vision Hub.
+        2. Select a module.
+        3. Upload an image or enter text.
+        4. Observe the error.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect the application to do?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What happened instead?
+    validations:
+      required: true
+
+  - type: input
+    id: python_version
+    attributes:
+      label: Python Version
+      placeholder: "Example: 3.11.9"
+
+  - type: input
+    id: operating_system
+    attributes:
+      label: Operating System
+      placeholder: "Example: Windows 11 or Ubuntu 24.04"
+
+  - type: textarea
+    id: error_logs
+    attributes:
+      label: Error Logs
+      description: Include relevant error messages. Remove passwords, API keys, personal information, and private biometric data.
+      render: text
+
+  - type: checkboxes
+    id: confirmation
+    attributes:
+      label: Submission Checklist
+      options:
+        - label: I have searched existing issues for duplicates.
+          required: true
+        - label: I have removed sensitive information from this report.
+          required: true
