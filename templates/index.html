@@ -1,0 +1,337 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>AI Vision Hub</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+<div class="sidebar">
+    <div class="logo">AI<span>VISION</span></div>
+
+    <p class="menu-title">MAIN MENU</p>
+
+    <a href="#dashboard" class="active">Dashboard</a>
+    <a href="#vision">Computer Vision</a>
+    <a href="#nlp">Natural Language AI</a>
+    <a href="#chatbot">AI Chatbot</a>
+    <a href="#history">Activity History</a>
+
+    <div class="sidebar-footer">
+        <span class="status-dot"></span>
+        AI SYSTEM ONLINE
+    </div>
+</div>
+
+<main class="main-content">
+
+    <header class="topbar">
+        <div>
+            <p class="eyebrow">INTELLIGENCE PLATFORM</p>
+            <h1>AI Vision Hub</h1>
+            <p class="subtitle">
+                Your all-in-one artificial intelligence workspace.
+            </p>
+        </div>
+
+        <div class="profile">
+            <div class="avatar">AI</div>
+            <span>AI Workspace</span>
+        </div>
+    </header>
+
+    <!-- Dashboard -->
+    <section id="dashboard">
+
+        <h2>Dashboard Overview</h2>
+
+        <div class="stats-grid">
+
+            <div class="stat-card">
+                <span>Uploaded Files</span>
+                <h3>{{ stats.uploads }}</h3>
+                <p>Images and videos</p>
+            </div>
+
+            <div class="stat-card">
+                <span>Registered Faces</span>
+                <h3>{{ stats.registered_faces }}</h3>
+                <p>Face records</p>
+            </div>
+
+            <div class="stat-card">
+                <span>AI Analyses</span>
+                <h3>{{ stats.analyses }}</h3>
+                <p>Completed records</p>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- Computer Vision -->
+    <section id="vision">
+
+        <h2>Computer Vision</h2>
+
+        <div class="tools-grid">
+
+            <div class="tool-card">
+                <div class="tool-icon">👤</div>
+                <h3>Face Recognition</h3>
+                <p>Register faces and recognize registered people.</p>
+
+                <form id="faceForm">
+                    <input type="text"
+                           name="name"
+                           placeholder="Person name"
+                           required>
+
+                    <input type="file"
+                           name="image"
+                           accept="image/*"
+                           required>
+
+                    <button type="submit">Register Face</button>
+                </form>
+
+                <button type="button"
+                        class="secondary"
+                        onclick="runAction('/train-faces', null)">
+                    Train Face Model
+                </button>
+
+                <form id="recognizeForm">
+                    <input type="file"
+                           name="image"
+                           accept="image/*"
+                           required>
+
+                    <button type="submit">Recognize Face</button>
+                </form>
+            </div>
+
+            <div class="tool-card">
+                <div class="tool-icon">🎯</div>
+                <h3>Object Detection</h3>
+                <p>Detect objects in images using YOLO.</p>
+
+                <form id="objectForm">
+                    <input type="file"
+                           name="image"
+                           accept="image/*"
+                           required>
+
+                    <button type="submit">Detect Objects</button>
+                </form>
+            </div>
+
+            <div class="tool-card">
+                <div class="tool-icon">🖼️</div>
+                <h3>Image Classification</h3>
+                <p>Identify image categories using MobileNetV2.</p>
+
+                <form id="classifyForm">
+                    <input type="file"
+                           name="image"
+                           accept="image/*"
+                           required>
+
+                    <button type="submit">Classify Image</button>
+                </form>
+            </div>
+
+            <div class="tool-card">
+                <div class="tool-icon">📊</div>
+                <h3>ML Prediction</h3>
+                <p>Compare Random Forest and XGBoost models.</p>
+
+                <p class="small-note">
+                    The prediction API is available in the backend.
+                    A feature-input interface will be added separately.
+                </p>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- Natural Language Processing -->
+    <section id="nlp">
+
+        <h2>Natural Language AI</h2>
+
+        <div class="tools-grid">
+
+            <div class="tool-card">
+                <div class="tool-icon">💬</div>
+                <h3>Sentiment Analysis</h3>
+                <p>Analyze positive and negative text sentiment.</p>
+
+                <form id="sentimentForm">
+                    <textarea name="text"
+                              placeholder="Enter text to analyze..."
+                              required></textarea>
+
+                    <button type="submit">Analyze Sentiment</button>
+                </form>
+            </div>
+
+            <div class="tool-card">
+                <div class="tool-icon">📰</div>
+                <h3>Fake News Classification</h3>
+                <p>Classify text using a trained ML model.</p>
+
+                <form id="fakeNewsForm">
+                    <textarea name="text"
+                              placeholder="Paste news text..."
+                              required></textarea>
+
+                    <button type="submit">Analyze News</button>
+                </form>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- Chatbot -->
+    <section id="chatbot">
+
+        <h2>AI Chatbot</h2>
+
+        <div class="tool-card chatbot-card">
+
+            <div class="tool-icon">🤖</div>
+            <h3>Talk to AI Vision Hub</h3>
+
+            <form id="chatForm">
+                <textarea name="message"
+                          placeholder="Ask the AI assistant..."
+                          required></textarea>
+
+                <button type="submit">Send Message</button>
+            </form>
+
+        </div>
+    </section>
+
+    <!-- Results -->
+    <section id="results-section">
+
+        <h2>AI Results</h2>
+
+        <div id="results" class="result-box">
+            <p>Your AI results will appear here.</p>
+        </div>
+
+    </section>
+
+    <!-- Activity History -->
+    <section id="history">
+
+        <h2>Recent Activity</h2>
+
+        <div class="history-card">
+
+            {% if history %}
+
+                {% for item in history %}
+
+                    <div class="history-item">
+                        <div>
+                            <strong>{{ item.module_name }}</strong>
+                            <p>{{ item.result }}</p>
+                        </div>
+
+                        <small>{{ item.created_at }}</small>
+                    </div>
+
+                {% endfor %}
+
+            {% else %}
+
+                <p>No AI activity recorded yet.</p>
+
+            {% endif %}
+
+        </div>
+    </section>
+
+    <footer>
+        AI VISION HUB © 2026 — POWERED BY ARTIFICIAL INTELLIGENCE
+    </footer>
+
+</main>
+
+<script>
+
+async function runAction(url, formData) {
+
+    const output = document.getElementById("results");
+
+    output.innerHTML = "<p>Processing AI request...</p>";
+
+    try {
+
+        const response = await fetch(url, {
+            method: "POST",
+            body: formData
+        });
+
+        const data = await response.json();
+
+        output.textContent = JSON.stringify(
+            data,
+            null,
+            2
+        );
+
+        if (!response.ok) {
+            output.textContent = data.error || "Request failed.";
+        }
+
+    } catch (error) {
+
+        output.textContent = "Error: " + error.message;
+
+    }
+
+    document.getElementById("results-section")
+        .scrollIntoView({ behavior: "smooth" });
+}
+
+
+function connectForm(formId, endpoint) {
+
+    const form = document.getElementById(formId);
+
+    form.addEventListener("submit", function(event) {
+
+        event.preventDefault();
+
+        const formData = new FormData(form);
+
+        runAction(endpoint, formData);
+
+    });
+
+}
+
+
+connectForm("faceForm", "/register-face");
+connectForm("recognizeForm", "/recognize-face");
+connectForm("objectForm", "/detect-objects");
+connectForm("classifyForm", "/classify-image");
+connectForm("sentimentForm", "/sentiment");
+connectForm("fakeNewsForm", "/fake-news");
+connectForm("chatForm", "/chatbot");
+
+</script>
+
+</body>
+</html>
