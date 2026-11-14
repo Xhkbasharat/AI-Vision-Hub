@@ -1,96 +1,321 @@
 
+import json
 import tempfile
 import unittest
+
 from pathlib import Path
 
 from database import Database
 
 
-class TestAIVisionHubDatabase(unittest.TestCase):
+class TestDatabase(unittest.TestCase):
 
     def setUp(self):
-        """
-        Create a temporary database for each test.
-        This keeps tests separate from your actual database.
-        """
-        self.temp_dir = tempfile.TemporaryDirectory()
+
+        self.temp_directory = tempfile.TemporaryDirectory()
 
         self.database_path = (
-            Path(self.temp_dir.name) / "test_ai_vision_hub.db"
+            Path(self.temp_directory.name)
+            / "test_database.db"
         )
 
-        self.db = Database()
-
-        # Use an isolated database instead of the project database.
-        self.db.db_path = self.database_path
-
-        self.db.create_tables()
+        self.db = Database(
+            database_path=self.database_path
+        )
 
     def tearDown(self):
-        self.temp_dir.cleanup()
 
-    def test_database_file_created(self):
-        self.assertTrue(self.database_path.exists())
+        self.temp_directory.cleanup()
+
+    # ======================================
+    # DATABASE INITIALIZATION
+    # ======================================
+
+    def test_database_created(self):
+
+        self.assertTrue(
+            self.database_path.exists()
+        )
+
+    # ======================================
+    # ADD UPLOAD
+    # ======================================
 
     def test_add_upload(self):
+
         upload_id = self.db.add_upload(
             "test_image.jpg",
-            "image"
+            "jpg"
         )
 
-        self.assertIsNotNone(upload_id)
+        self.assertIsInstance(
+            upload_id,
+            int
+        )
+
+        self.assertGreater(
+            upload_id,
+            0
+        )
+
+    # ======================================
+    # ADD FACE
+    # ======================================
 
     def test_add_face(self):
+
         face_id = self.db.add_face(
             "Test Person",
-            "data/known_faces/test_person/image_1.jpg"
+            "data/known_faces/test.jpg"
         )
 
-        self.assertIsNotNone(face_id)
+        self.assertGreater(
+            face_id,
+            0
+        )
+
+    # ======================================
+    # GET FACES
+    # ======================================
+
+    def test_get_faces(self):
+
+        self.db.add_face(
+            "Test Person",
+            "data/known_faces/test.jpg"
+        )
 
         faces = self.db.get_faces()
 
-        self.assertGreaterEqual(len(faces), 1)
-
-    def test_save_analysis(self):
-        analysis_id = self.db.save_analysis(
-            module_name="object_detection",
-            input_text="test_image.jpg",
-            result="Detected one object",
-            confidence=0.95
+        self.assertEqual(
+            len(faces),
+            1
         )
 
-        self.assertIsNotNone(analysis_id)
+        self.assertEqual(
+            faces[0]["person_name"],
+            "Test Person"
+        )
 
-    def test_analysis_history(self):
+    # ======================================
+    # SAVE ANALYSIS
+    # ======================================
+
+    def test_save_analysis(self):
+
+        result = {
+            "prediction": "Positive",
+            "confidence": 0.95
+        }
+
+        analysis_id = self.db.save_analysis(
+            "sentiment_analysis",
+            "This is a great product.",
+            result,
+            0.95
+        )
+
+        self.assertGreater(
+            analysis_id,
+            0
+        )
+
+    # ======================================
+    # GET ANALYSIS HISTORY
+    # ======================================
+
+    def test_get_analysis_history(self):
+
+        result = {
+            "prediction": "Positive"
+        }
+
         self.db.save_analysis(
-            module_name="sentiment_analysis",
-            input_text="This is a great project!",
-            result="POSITIVE",
-            confidence=0.98
+            "sentiment_analysis",
+            "Wonderful experience",
+            result,
+            0.90
         )
 
         history = self.db.get_analysis_history()
 
-        self.assertGreaterEqual(len(history), 1)
+        self.assertEqual(
+            len(history),
+            1
+        )
+
+        self.assertEqual(
+            history[0]["module_name"],
+            "sentiment_analysis"
+        )
+
+        self.assertEqual(
+            history[0]["result"],
+            result
+        )
+
+    # ======================================
+    # HISTORY LIMIT
+    # ======================================
+
+    def test_history_limit(self):
+
+        for index in range(5):
+
+            self.db.save_analysis(
+                "test_module",
+                f"Input {index}",
+                {
+                    "result": index
+                }
+            )
+
+        history = self.db.get_analysis_history(
+            limit=2
+        )
+
+        self.assertEqual(
+            len(history),
+            2
+        )
+
+    # ======================================
+    # DASHBOARD STATISTICS
+    # ======================================
 
     def test_dashboard_stats(self):
+
         self.db.add_upload(
-            "dashboard_test.jpg",
-            "image"
+            "image1.jpg",
+            "jpg"
+        )
+
+        self.db.add_upload(
+            "image2.png",
+            "png"
+        )
+
+        self.db.add_face(
+            "Person A",
+            "person_a.jpg"
+        )
+
+        self.db.add_face(
+            "Person A",
+            "person_a_2.jpg"
+        )
+
+        self.db.add_face(
+            "Person B",
+            "person_b.jpg"
+        )
+
+        self.db.save_analysis(
+            "object_detection",
+            "image.jpg",
+            {
+                "objects": 3
+            }
         )
 
         stats = self.db.get_dashboard_stats()
 
-        self.assertIn("total_uploads", stats)
-        self.assertIn("registered_faces", stats)
-        self.assertIn("total_analyses", stats)
-
-        self.assertGreaterEqual(
+        self.assertEqual(
             stats["total_uploads"],
+            2
+        )
+
+        self.assertEqual(
+            stats["registered_faces"],
+            2
+        )
+
+        self.assertEqual(
+            stats["total_analyses"],
             1
+        )
+
+    # ======================================
+    # EMPTY DATABASE STATISTICS
+    # ======================================
+
+    def test_empty_database_stats(self):
+
+        stats = self.db.get_dashboard_stats()
+
+        self.assertEqual(
+            stats["total_uploads"],
+            0
+        )
+
+        self.assertEqual(
+            stats["registered_faces"],
+            0
+        )
+
+        self.assertEqual(
+            stats["total_analyses"],
+            0
+        )
+
+    # ======================================
+    # INVALID UPLOAD
+    # ======================================
+
+    def test_invalid_upload(self):
+
+        with self.assertRaises(ValueError):
+
+            self.db.add_upload(
+                "",
+                "jpg"
+            )
+
+    # ======================================
+    # INVALID ANALYSIS
+    # ======================================
+
+    def test_invalid_analysis(self):
+
+        with self.assertRaises(ValueError):
+
+            self.db.save_analysis(
+                "",
+                "test",
+                {}
+            )
+
+    # ======================================
+    # INVALID HISTORY LIMIT
+    # ======================================
+
+    def test_invalid_history_limit(self):
+
+        with self.assertRaises(ValueError):
+
+            self.db.get_analysis_history(
+                limit=0
+            )
+
+    # ======================================
+    # DATABASE TIMESTAMP
+    # ======================================
+
+    def test_timestamp(self):
+
+        timestamp = Database.current_timestamp()
+
+        self.assertIsInstance(
+            timestamp,
+            str
+        )
+
+        self.assertIn(
+            "T",
+            timestamp
         )
 
 
 if __name__ == "__main__":
+
     unittest.main(verbosity=2)
