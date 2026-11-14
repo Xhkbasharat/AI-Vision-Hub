@@ -15,10 +15,19 @@ ENV/
 .env.*
 !.env.example
 
+# Python build and packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+
 # Python testing and coverage
 .pytest_cache/
 .coverage
+.coverage.*
 htmlcov/
+.tox/
+.nox/
 
 # Jupyter
 .ipynb_checkpoints/
@@ -71,3 +80,6 @@ desktop.ini
 # Temporary files
 *.tmp
 *.temp
+*.bak
+*.swp
+*.swo
