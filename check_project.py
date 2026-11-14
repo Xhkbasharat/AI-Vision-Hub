@@ -1,11 +1,13 @@
 
-import ast
 from pathlib import Path
+import sys
 
 
 # ==========================================
-# PROJECT FILES
+# PROJECT CONFIGURATION
 # ==========================================
+
+BASE_DIR = Path(__file__).resolve().parent
 
 REQUIRED_FILES = [
     "app.py",
@@ -13,6 +15,26 @@ REQUIRED_FILES = [
     "database.py",
     "requirements.txt",
     "train_fake_news.py",
+    "test_database.py",
+    "test_app.py",
+    "test_image_validation.py",
+    "test_config.py",
+    "test_error_handler.py",
+    "test_logger.py",
+    "check_imports.py",
+]
+
+REQUIRED_FOLDERS = [
+    "modules",
+    "models",
+    "templates",
+    "static",
+    "data",
+    "data/uploads",
+    "data/known_faces",
+]
+
+REQUIRED_MODULES = [
     "modules/__init__.py",
     "modules/face_recognition.py",
     "modules/object_detection.py",
@@ -21,243 +43,165 @@ REQUIRED_FILES = [
     "modules/sentiment_analysis.py",
     "modules/fake_news.py",
     "modules/chatbot.py",
+    "modules/error_handler.py",
+    "modules/logger.py",
+]
+
+REQUIRED_FRONTEND_FILES = [
     "templates/index.html",
     "static/style.css",
-    "README.md"
 ]
 
 
 # ==========================================
-# REQUIRED FUNCTIONS AND METHODS
+# CHECK FUNCTIONS
 # ==========================================
 
-REQUIRED_METHODS = {
-    "database.py": [
-        "get_connection",
-        "create_tables",
-        "add_upload",
-        "add_face",
-        "get_faces",
-        "save_analysis",
-        "get_analysis_history",
-        "get_dashboard_stats"
-    ],
+def check_files():
 
-    "modules/face_recognition.py": [
-        "register_face",
-        "train_model",
-        "recognize_face"
-    ],
+    print("\nChecking required files...")
 
-    "modules/object_detection.py": [
-        "detect_objects"
-    ],
+    missing = []
 
-    "modules/image_classification.py": [
-        "classify_image",
-        "get_best_prediction"
-    ],
+    for filename in REQUIRED_FILES:
 
-    "modules/ml_prediction.py": [
-        "predict"
-    ],
+        path = BASE_DIR / filename
 
-    "modules/sentiment_analysis.py": [
-        "analyze_sentiment",
-        "analyze_multiple"
-    ],
+        if path.is_file():
 
-    "modules/fake_news.py": [
-        "predict",
-        "load_model"
-    ],
+            print(f"[OK] {filename}")
 
-    "modules/chatbot.py": [
-        "chat",
-        "reset_chat"
-    ],
+        else:
 
-    "train_fake_news.py": [
-        "clean_text",
-        "load_dataset",
-        "train_model"
-    ]
-}
+            print(f"[MISSING] {filename}")
+
+            missing.append(filename)
+
+    return missing
 
 
-# ==========================================
-# PYTHON SYNTAX CHECK
-# ==========================================
+def check_folders():
 
-def check_python_syntax(file_path):
+    print("\nChecking required folders...")
 
-    try:
-        source = file_path.read_text(
-            encoding="utf-8"
-        )
+    missing = []
 
-        ast.parse(source)
+    for folder in REQUIRED_FOLDERS:
 
-        return True, "Syntax OK"
+        path = BASE_DIR / folder
 
-    except SyntaxError as error:
+        if path.is_dir():
 
-        return False, (
-            f"Line {error.lineno}: {error.msg}"
-        )
+            print(f"[OK] {folder}/")
 
-    except OSError as error:
+        else:
 
-        return False, str(error)
+            print(f"[MISSING] {folder}/")
+
+            missing.append(folder)
+
+    return missing
 
 
-# ==========================================
-# CLASS AND METHOD CHECK
-# ==========================================
+def check_modules():
 
-def check_required_methods(file_path, required_methods):
+    print("\nChecking AI modules...")
 
-    source = file_path.read_text(
-        encoding="utf-8"
-    )
+    missing = []
 
-    tree = ast.parse(source)
+    for module in REQUIRED_MODULES:
 
-    available_methods = set()
+        path = BASE_DIR / module
 
-    for node in ast.walk(tree):
+        if path.is_file():
 
-        if isinstance(
-            node,
-            (ast.FunctionDef, ast.AsyncFunctionDef)
-        ):
-            available_methods.add(node.name)
+            print(f"[OK] {module}")
 
-    missing = [
-        method
-        for method in required_methods
-        if method not in available_methods
-    ]
+        else:
+
+            print(f"[MISSING] {module}")
+
+            missing.append(module)
+
+    return missing
+
+
+def check_frontend():
+
+    print("\nChecking frontend files...")
+
+    missing = []
+
+    for filename in REQUIRED_FRONTEND_FILES:
+
+        path = BASE_DIR / filename
+
+        if path.is_file():
+
+            print(f"[OK] {filename}")
+
+        else:
+
+            print(f"[MISSING] {filename}")
+
+            missing.append(filename)
 
     return missing
 
 
 # ==========================================
-# RUN PROJECT CHECKS
+# MAIN VERIFICATION
 # ==========================================
 
 def main():
 
-    root = Path(__file__).resolve().parent
+    print("=" * 55)
+    print("          AI VISION HUB PROJECT CHECK")
+    print("=" * 55)
 
-    passed = 0
-    failed = 0
+    print(f"\nProject directory: {BASE_DIR}")
 
-    print("\n================================")
-    print("       AI VISION HUB CHECK")
-    print("================================\n")
+    missing_files = check_files()
+    missing_folders = check_folders()
+    missing_modules = check_modules()
+    missing_frontend = check_frontend()
 
-    # Check required files.
-    print("1. FILE CHECK")
-
-    for filename in REQUIRED_FILES:
-
-        file_path = root / filename
-
-        if file_path.exists():
-
-            print(f"[OK] {filename}")
-            passed += 1
-
-        else:
-
-            print(f"[MISSING] {filename}")
-            failed += 1
-
-    # Check Python syntax.
-    print("\n2. PYTHON SYNTAX CHECK")
-
-    python_files = [
-        root / "app.py",
-        root / "config.py",
-        root / "database.py",
-        root / "train_fake_news.py"
-    ]
-
-    python_files.extend(
-        root / filename
-        for filename in REQUIRED_METHODS
-        if filename.startswith("modules/")
+    all_missing = (
+        missing_files
+        + missing_folders
+        + missing_modules
+        + missing_frontend
     )
 
-    for file_path in python_files:
+    print("\n" + "=" * 55)
+    print("                 CHECK SUMMARY")
+    print("=" * 55)
 
-        if not file_path.exists():
-            continue
+    if all_missing:
 
-        valid, message = check_python_syntax(file_path)
+        print(
+            f"\n[FAILED] {len(all_missing)} required items are missing."
+        )
 
-        if valid:
+        print("\nMissing items:")
 
-            print(f"[OK] {file_path.relative_to(root)}")
-            passed += 1
+        for item in all_missing:
 
-        else:
+            print(f"- {item}")
 
-            print(
-                f"[ERROR] {file_path.relative_to(root)}: {message}"
-            )
-            failed += 1
+        print(
+            "\nCreate the missing files or folders before proceeding."
+        )
 
-    # Check required methods.
-    print("\n3. METHOD CHECK")
+        return 1
 
-    for filename, methods in REQUIRED_METHODS.items():
+    print("\n[SUCCESS] All required project items exist.")
 
-        file_path = root / filename
+    print("\nAI Vision Hub project structure is complete.")
 
-        if not file_path.exists():
-            continue
-
-        try:
-            missing = check_required_methods(
-                file_path,
-                methods
-            )
-
-            if missing:
-
-                print(
-                    f"[ERROR] {filename}: Missing {missing}"
-                )
-                failed += len(missing)
-
-            else:
-
-                print(f"[OK] {filename}")
-                passed += 1
-
-        except SyntaxError:
-
-            print(f"[SKIP] {filename}: Syntax error")
-            failed += 1
-
-    # Final result.
-    print("\n================================")
-    print("          FINAL REPORT")
-    print("================================")
-
-    print(f"Passed checks: {passed}")
-    print(f"Failed checks: {failed}")
-
-    if failed == 0:
-        print("\nProject structure checks passed.")
-
-    else:
-        print("\nFix the reported issues before testing.")
-
-    print("================================\n")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+
+    sys.exit(main())
