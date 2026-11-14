@@ -1,15 +1,38 @@
 
+import logging
 import sqlite3
+
 from contextlib import contextmanager
 from datetime import datetime, timezone
+from pathlib import Path
 
 from config import DATABASE_PATH
 
 
-class Database:
+logger = logging.getLogger("AI-Vision-Hub")
 
-    def __init__(self):
-        self.database_path = DATABASE_PATH
+
+class Database:
+    """
+    SQLite database manager for AI Vision Hub.
+
+    Stores:
+    - Uploaded files
+    - Registered faces
+    - AI analysis results
+    """
+
+    def __init__(self, database_path=None):
+
+        self.database_path = Path(
+            database_path or DATABASE_PATH
+        )
+
+        self.database_path.parent.mkdir(
+            parents=True,
+            exist_ok=True
+        )
+
         self.create_tables()
 
     # ======================================
@@ -18,64 +41,32 @@ class Database:
 
     @contextmanager
     def get_connection(self):
+
         connection = sqlite3.connect(
             str(self.database_path),
             timeout=30
         )
 
         connection.row_factory = sqlite3.Row
-        connection.execute("PRAGMA foreign_keys = ON")
 
         try:
+
             yield connection
+
             connection.commit()
 
         except Exception:
+
             connection.rollback()
+
             raise
 
         finally:
+
             connection.close()
 
     # ======================================
-    # CREATE DATABASE TABLES
-    # ======================================
-
-    def create_tables(self):
-
-        with self.get_connection() as connection:
-
-            connection.execute("""
-                CREATE TABLE IF NOT EXISTS uploads (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    filename TEXT NOT NULL,
-                    file_type TEXT NOT NULL,
-                    uploaded_at TEXT NOT NULL
-                )
-            """)
-
-            connection.execute("""
-                CREATE TABLE IF NOT EXISTS faces (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    person_name TEXT NOT NULL,
-                    image_path TEXT NOT NULL,
-                    created_at TEXT NOT NULL
-                )
-            """)
-
-            connection.execute("""
-                CREATE TABLE IF NOT EXISTS analysis_results (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    module_name TEXT NOT NULL,
-                    input_text TEXT,
-                    result TEXT,
-                    confidence REAL,
-                    created_at TEXT NOT NULL
-                )
-            """)
-
-    # ======================================
-    # TIMESTAMP
+    # CURRENT TIMESTAMP
     # ======================================
 
     @staticmethod
@@ -86,27 +77,114 @@ class Database:
         ).isoformat()
 
     # ======================================
+    # CREATE DATABASE TABLES
+    # ======================================
+
+    def create_tables(self):
+
+        try:
+
+            with self.get_connection() as connection:
+
+                cursor = connection.cursor()
+
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS uploads (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        filename TEXT NOT NULL,
+                        file_type TEXT NOT NULL,
+                        uploaded_at TEXT NOT NULL
+                    )
+                """)
+
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS faces (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        person_name TEXT NOT NULL,
+                        image_path TEXT NOT NULL,
+                        registered_at TEXT NOT NULL
+                    )
+                """)
+
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS analyses (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        module_name TEXT NOT NULL,
+                        input_text TEXT,
+                        result TEXT NOT NULL,
+                        confidence REAL,
+                        created_at TEXT NOT NULL
+                    )
+                """)
+
+                cursor.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_uploads_uploaded_at
+                    ON uploads(uploaded_at)
+                """)
+
+                cursor.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_faces_person_name
+                    ON faces(person_name)
+                """)
+
+                cursor.execute("""
+                    CREATE INDEX IF NOT EXISTS
+                    idx_analyses_created_at
+                    ON analyses(created_at)
+                """)
+
+            logger.info(
+                "Database tables initialized successfully."
+            )
+
+        except sqlite3.Error:
+
+            logger.exception(
+                "Database table initialization failed."
+            )
+
+            raise
+
+    # ======================================
     # ADD UPLOAD
     # ======================================
 
     def add_upload(self, filename, file_type):
 
+        if not filename or not file_type:
+
+            raise ValueError(
+                "Filename and file type are required."
+            )
+
         with self.get_connection() as connection:
 
-            cursor = connection.execute("""
+            cursor = connection.execute(
+                """
                 INSERT INTO uploads (
                     filename,
                     file_type,
                     uploaded_at
                 )
                 VALUES (?, ?, ?)
-            """, (
-                filename,
-                file_type,
-                self.current_timestamp()
-            ))
+                """,
+                (
+                    str(filename),
+                    str(file_type),
+                    self.current_timestamp()
+                )
+            )
 
-            return cursor.lastrowid
+            upload_id = cursor.lastrowid
+
+        logger.info(
+            "Upload record created: %s",
+            upload_id
+        )
+
+        return upload_id
 
     # ======================================
     # ADD REGISTERED FACE
@@ -114,22 +192,38 @@ class Database:
 
     def add_face(self, person_name, image_path):
 
+        if not person_name or not image_path:
+
+            raise ValueError(
+                "Person name and image path are required."
+            )
+
         with self.get_connection() as connection:
 
-            cursor = connection.execute("""
+            cursor = connection.execute(
+                """
                 INSERT INTO faces (
                     person_name,
                     image_path,
-                    created_at
+                    registered_at
                 )
                 VALUES (?, ?, ?)
-            """, (
-                person_name,
-                str(image_path),
-                self.current_timestamp()
-            ))
+                """,
+                (
+                    str(person_name),
+                    str(image_path),
+                    self.current_timestamp()
+                )
+            )
 
-            return cursor.lastrowid
+            face_id = cursor.lastrowid
+
+        logger.info(
+            "Face record created: %s",
+            face_id
+        )
+
+        return face_id
 
     # ======================================
     # GET REGISTERED FACES
@@ -139,15 +233,21 @@ class Database:
 
         with self.get_connection() as connection:
 
-            rows = connection.execute("""
-                SELECT *
+            cursor = connection.execute(
+                """
+                SELECT
+                    id,
+                    person_name,
+                    image_path,
+                    registered_at
                 FROM faces
-                ORDER BY created_at DESC
-            """).fetchall()
+                ORDER BY registered_at DESC
+                """
+            )
 
             return [
                 dict(row)
-                for row in rows
+                for row in cursor.fetchall()
             ]
 
     # ======================================
@@ -162,10 +262,35 @@ class Database:
         confidence=None
     ):
 
+        import json
+
+        if not module_name:
+
+            raise ValueError(
+                "Module name is required."
+            )
+
+        if result is None:
+
+            raise ValueError(
+                "Analysis result cannot be empty."
+            )
+
+        serialized_result = json.dumps(
+            result,
+            ensure_ascii=False,
+            default=str
+        )
+
+        if confidence is not None:
+
+            confidence = float(confidence)
+
         with self.get_connection() as connection:
 
-            cursor = connection.execute("""
-                INSERT INTO analysis_results (
+            cursor = connection.execute(
+                """
+                INSERT INTO analyses (
                     module_name,
                     input_text,
                     result,
@@ -173,15 +298,24 @@ class Database:
                     created_at
                 )
                 VALUES (?, ?, ?, ?, ?)
-            """, (
-                module_name,
-                str(input_text),
-                str(result),
-                confidence,
-                self.current_timestamp()
-            ))
+                """,
+                (
+                    str(module_name),
+                    str(input_text) if input_text is not None else None,
+                    serialized_result,
+                    confidence,
+                    self.current_timestamp()
+                )
+            )
 
-            return cursor.lastrowid
+            analysis_id = cursor.lastrowid
+
+        logger.info(
+            "Analysis record created: %s",
+            analysis_id
+        )
+
+        return analysis_id
 
     # ======================================
     # GET ANALYSIS HISTORY
@@ -189,24 +323,55 @@ class Database:
 
     def get_analysis_history(self, limit=50):
 
-        limit = max(
-            1,
-            min(int(limit), 500)
-        )
+        import json
+
+        if not isinstance(limit, int) or limit < 1:
+
+            raise ValueError(
+                "Limit must be a positive integer."
+            )
+
+        limit = min(limit, 500)
 
         with self.get_connection() as connection:
 
-            rows = connection.execute("""
-                SELECT *
-                FROM analysis_results
+            cursor = connection.execute(
+                """
+                SELECT
+                    id,
+                    module_name,
+                    input_text,
+                    result,
+                    confidence,
+                    created_at
+                FROM analyses
                 ORDER BY id DESC
                 LIMIT ?
-            """, (limit,)).fetchall()
+                """,
+                (limit,)
+            )
 
-            return [
-                dict(row)
-                for row in rows
-            ]
+            records = cursor.fetchall()
+
+        history = []
+
+        for record in records:
+
+            item = dict(record)
+
+            try:
+
+                item["result"] = json.loads(
+                    item["result"]
+                )
+
+            except (TypeError, json.JSONDecodeError):
+
+                item["result"] = None
+
+            history.append(item)
+
+        return history
 
     # ======================================
     # DASHBOARD STATISTICS
@@ -216,23 +381,34 @@ class Database:
 
         with self.get_connection() as connection:
 
-            upload_count = connection.execute("""
-                SELECT COUNT(*)
+            uploads = connection.execute(
+                """
+                SELECT COUNT(*) AS total
                 FROM uploads
-            """).fetchone()[0]
+                """
+            ).fetchone()["total"]
 
-            face_count = connection.execute("""
-                SELECT COUNT(DISTINCT person_name)
+            faces = connection.execute(
+                """
+                SELECT COUNT(DISTINCT person_name) AS total
                 FROM faces
-            """).fetchone()[0]
+                """
+            ).fetchone()["total"]
 
-            analysis_count = connection.execute("""
-                SELECT COUNT(*)
-                FROM analysis_results
-            """).fetchone()[0]
+            analyses = connection.execute(
+                """
+                SELECT COUNT(*) AS total
+                FROM analyses
+                """
+            ).fetchone()["total"]
 
-            return {
-                "total_uploads": upload_count,
-                "registered_faces": face_count,
-                "total_analyses": analysis_count
-            }
+        return {
+            "total_uploads": int(uploads),
+            "registered_faces": int(faces),
+            "total_analyses": int(analyses)
+        }
+
+
+__all__ = [
+    "Database"
+]
