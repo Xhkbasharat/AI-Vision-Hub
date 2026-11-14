@@ -1,90 +1,214 @@
 
 import importlib
-import inspect
+import logging
+import sys
 
 
-MODULES = {
-    "modules.face_recognition": "FaceRecognition",
-    "modules.object_detection": "ObjectDetection",
-    "modules.image_classification": "ImageClassification",
-    "modules.ml_prediction": "MLPrediction",
-    "modules.sentiment_analysis": "SentimentAnalyzer",
-    "modules.fake_news": "FakeNewsDetector",
-    "modules.chatbot": "Chatbot",
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(levelname)s: %(message)s"
+)
+
+logger = logging.getLogger("AI-Vision-Hub")
+
+
+# ======================================
+# MODULES TO CHECK
+# ======================================
+
+MODULES = [
+    "config",
+    "database",
+    "app",
+    "modules.face_recognition",
+    "modules.object_detection",
+    "modules.image_classification",
+    "modules.ml_prediction",
+    "modules.sentiment_analysis",
+    "modules.fake_news",
+    "modules.chatbot",
+    "modules.error_handler",
+    "modules.logger"
+]
+
+
+# ======================================
+# EXPECTED CLASSES AND FUNCTIONS
+# ======================================
+
+EXPECTED_EXPORTS = {
+
+    "database": [
+        "Database"
+    ],
+
+    "modules.face_recognition": [
+        "FaceRecognition"
+    ],
+
+    "modules.object_detection": [
+        "ObjectDetection"
+    ],
+
+    "modules.image_classification": [
+        "ImageClassification"
+    ],
+
+    "modules.ml_prediction": [
+        "MLPrediction"
+    ],
+
+    "modules.sentiment_analysis": [
+        "SentimentAnalyzer"
+    ],
+
+    "modules.fake_news": [
+        "FakeNewsDetector"
+    ],
+
+    "modules.chatbot": [
+        "Chatbot"
+    ],
+
+    "modules.error_handler": [
+        "AIVisionHubError",
+        "ImageValidationError",
+        "ModelLoadingError",
+        "PredictionError",
+        "DatabaseError"
+    ],
+
+    "modules.logger": [
+        "app_logger",
+        "log_info",
+        "log_warning",
+        "log_error"
+    ]
 }
 
 
-def check_imports():
+# ======================================
+# CHECK IMPORTS
+# ======================================
 
-    print("\n================================")
-    print(" AI VISION HUB IMPORT CHECK")
-    print("================================\n")
+def check_imports():
 
     passed = 0
     failed = 0
 
-    for module_name, class_name in MODULES.items():
+    print("\n===================================")
+    print(" AI VISION HUB - IMPORT CHECK")
+    print("===================================\n")
+
+    for module_name in MODULES:
 
         try:
 
-            module = importlib.import_module(module_name)
-
-            model_class = getattr(
-                module,
-                class_name,
-                None
+            module = importlib.import_module(
+                module_name
             )
 
-            if model_class is None:
+            missing_exports = []
 
-                print(
-                    f"[FAILED] {module_name}: "
-                    f"{class_name} not found"
-                )
-
-                failed += 1
-                continue
-
-            if not inspect.isclass(model_class):
-
-                print(
-                    f"[FAILED] {class_name} is not a class"
-                )
-
-                failed += 1
-                continue
-
-            print(
-                f"[OK] {module_name}.{class_name}"
+            expected = EXPECTED_EXPORTS.get(
+                module_name,
+                []
             )
+
+            for export in expected:
+
+                if not hasattr(module, export):
+
+                    missing_exports.append(
+                        export
+                    )
+
+            if missing_exports:
+
+                failed += 1
+
+                print(
+                    f"[FAIL] {module_name}"
+                )
+
+                print(
+                    "Missing exports:",
+                    ", ".join(missing_exports)
+                )
+
+                continue
 
             passed += 1
 
-        except Exception as error:
-
             print(
-                f"[FAILED] {module_name}: {error}"
+                f"[PASS] {module_name}"
             )
+
+        except Exception as error:
 
             failed += 1
 
-    print("\n================================")
-    print(" IMPORT CHECK RESULTS")
-    print("================================")
+            print(
+                f"[FAIL] {module_name}"
+            )
 
-    print(f"Passed: {passed}")
-    print(f"Failed: {failed}")
+            print(
+                f"       {type(error).__name__}: {error}"
+            )
 
-    if failed == 0:
+            logger.exception(
+                "Import failed: %s",
+                module_name
+            )
 
-        print("\nAll expected module imports passed.")
+    # ==================================
+    # SUMMARY
+    # ==================================
 
-    else:
+    total = passed + failed
 
-        print("\nFix the failed imports before starting Flask.")
+    print("\n===================================")
+    print(" IMPORT CHECK SUMMARY")
+    print("===================================")
 
-    print("================================\n")
+    print(
+        f"Total modules: {total}"
+    )
 
+    print(
+        f"Passed: {passed}"
+    )
+
+    print(
+        f"Failed: {failed}"
+    )
+
+    print("===================================\n")
+
+    if failed:
+
+        print(
+            "Import verification failed. "
+            "Review the errors above."
+        )
+
+        return False
+
+    print(
+        "All module imports verified successfully."
+    )
+
+    return True
+
+
+# ======================================
+# MAIN
+# ======================================
 
 if __name__ == "__main__":
-    check_imports()
+
+    success = check_imports()
+
+    sys.exit(
+        0 if success else 1
+    )
