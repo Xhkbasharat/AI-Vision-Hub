@@ -1,83 +1,106 @@
 
 import unittest
+
 from unittest.mock import patch
 
-import app as application
+from app import app, database
 
 
-class TestAIVisionHubApp(unittest.TestCase):
-
-    @classmethod
-    def setUpClass(cls):
-        """
-        Configure the Flask application for testing.
-        """
-        application.app.config.update(
-            TESTING=True,
-            SECRET_KEY="test-secret-key"
-        )
+class TestAIvisionHubApp(unittest.TestCase):
 
     def setUp(self):
-        self.client = application.app.test_client()
+
+        app.config["TESTING"] = True
+
+        app.config["SECRET_KEY"] = (
+            "test-secret-key-for-ai-vision-hub"
+        )
+
+        self.client = app.test_client()
 
     # ======================================
-    # HOME PAGE
+    # DASHBOARD TEST
     # ======================================
 
-    def test_home_page(self):
+    @patch.object(
+        database,
+        "get_dashboard_stats"
+    )
+    def test_home_page(self, mock_stats):
 
-        with patch.object(
-            application.db,
-            "get_dashboard_stats",
-            return_value={
-                "total_uploads": 5,
-                "registered_faces": 2,
-                "total_analyses": 10
-            }
-        ):
+        mock_stats.return_value = {
+            "total_uploads": 5,
+            "registered_faces": 2,
+            "total_analyses": 10
+        }
 
-            response = self.client.get("/")
+        response = self.client.get("/")
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.status_code,
+            200
+        )
+
         self.assertIn(
             b"AI Vision Hub",
             response.data
         )
 
     # ======================================
-    # HEALTH ENDPOINT
+    # HEALTH CHECK TEST
     # ======================================
 
     def test_health_endpoint(self):
 
-        response = self.client.get("/health")
+        response = self.client.get(
+            "/health"
+        )
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.status_code,
+            200
+        )
 
         data = response.get_json()
 
-        self.assertIsInstance(data, dict)
-        self.assertEqual(data.get("status"), "healthy")
+        self.assertTrue(
+            data["success"]
+        )
+
+        self.assertEqual(
+            data["result"]["status"],
+            "healthy"
+        )
 
     # ======================================
-    # UNKNOWN ROUTE
+    # UNKNOWN ROUTE TEST
     # ======================================
 
     def test_unknown_route(self):
 
         response = self.client.get(
-            "/this-route-does-not-exist"
+            "/unknown-page"
         )
 
-        self.assertEqual(response.status_code, 404)
+        self.assertEqual(
+            response.status_code,
+            404
+        )
+
+        data = response.get_json()
+
+        self.assertFalse(
+            data["success"]
+        )
 
     # ======================================
-    # CHAT RESET
+    # CHAT RESET TEST
     # ======================================
 
     def test_reset_chat(self):
 
         with self.client.session_transaction() as session:
+
             session["chat_history"] = [
                 {
                     "speaker": "user",
@@ -85,34 +108,140 @@ class TestAIVisionHubApp(unittest.TestCase):
                 }
             ]
 
-        response = self.client.post("/reset-chat")
+        response = self.client.post(
+            "/reset-chat"
+        )
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.status_code,
+            200
+        )
+
+        data = response.get_json()
+
+        self.assertTrue(
+            data["success"]
+        )
 
         with self.client.session_transaction() as session:
-            self.assertNotIn("chat_history", session)
+
+            self.assertNotIn(
+                "chat_history",
+                session
+            )
 
     # ======================================
-    # OVERSIZED REQUEST
+    # EMPTY SENTIMENT INPUT
     # ======================================
 
-    def test_oversized_request(self):
+    def test_empty_sentiment_input(self):
 
         response = self.client.post(
             "/sentiment",
-            data={
-                "text": "A" * 6000
-            },
-            content_type="application/json"
+            json={
+                "text": ""
+            }
         )
 
-        # The route should reject text exceeding
-        # its configured 5000-character limit.
-        self.assertIn(
+        self.assertEqual(
             response.status_code,
-            [400, 413]
+            400
+        )
+
+    # ======================================
+    # INVALID SENTIMENT INPUT TYPE
+    # ======================================
+
+    def test_invalid_sentiment_input(self):
+
+        response = self.client.post(
+            "/sentiment",
+            json={
+                "text": 12345
+            }
+        )
+
+        self.assertEqual(
+            response.status_code,
+            400
+        )
+
+    # ======================================
+    # OVERSIZED SENTIMENT INPUT
+    # ======================================
+
+    def test_oversized_sentiment_input(self):
+
+        response = self.client.post(
+            "/sentiment",
+            json={
+                "text": "A" * 5001
+            }
+        )
+
+        self.assertEqual(
+            response.status_code,
+            400
+        )
+
+    # ======================================
+    # INVALID ML MODEL
+    # ======================================
+
+    def test_invalid_ml_model(self):
+
+        response = self.client.post(
+            "/ml-prediction",
+            json={
+                "values": [
+                    5.1,
+                    3.5,
+                    1.4,
+                    0.2
+                ],
+                "model": "invalid_model"
+            }
+        )
+
+        self.assertEqual(
+            response.status_code,
+            400
+        )
+
+    # ======================================
+    # INVALID HISTORY LIMIT
+    # ======================================
+
+    def test_invalid_history_limit(self):
+
+        response = self.client.get(
+            "/analysis-history?limit=invalid"
+        )
+
+        self.assertEqual(
+            response.status_code,
+            400
+        )
+
+    # ======================================
+    # EMPTY CHAT MESSAGE
+    # ======================================
+
+    def test_empty_chat_message(self):
+
+        response = self.client.post(
+            "/chatbot",
+            data={
+                "message": ""
+            }
+        )
+
+        self.assertEqual(
+            response.status_code,
+            400
         )
 
 
 if __name__ == "__main__":
+
     unittest.main(verbosity=2)
