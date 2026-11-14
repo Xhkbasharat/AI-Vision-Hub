@@ -1,113 +1,185 @@
 
 from pathlib import Path
 
+import cv2
 from ultralytics import YOLO
 
 from config import (
+    MODEL_FOLDER,
     YOLO_MODEL_NAME,
-    OBJECT_CONFIDENCE_THRESHOLD,
-    MODEL_FOLDER
+    OBJECT_CONFIDENCE_THRESHOLD
 )
 
 
 class ObjectDetection:
 
     def __init__(self):
+        self.model_folder = Path(MODEL_FOLDER)
 
-        model_path = Path(MODEL_FOLDER) / YOLO_MODEL_NAME
+        self.model_folder.mkdir(
+            parents=True,
+            exist_ok=True
+        )
 
-        # Load local weights if available.
-        # Otherwise, Ultralytics downloads the model.
-        if model_path.exists():
-            self.model = YOLO(str(model_path))
+        self.model_path = (
+            self.model_folder / YOLO_MODEL_NAME
+        )
+
+        # Use a local model if it exists.
+        # Otherwise, Ultralytics downloads the pretrained model.
+        if self.model_path.exists():
+            self.model = YOLO(str(self.model_path))
         else:
             self.model = YOLO(YOLO_MODEL_NAME)
 
-    def detect_objects(self, image_path):
+    # ======================================
+    # VALIDATE IMAGE
+    # ======================================
+
+    @staticmethod
+    def validate_image(image_path):
 
         image_path = Path(image_path)
 
-        if not image_path.is_file():
+        if not image_path.exists():
             raise FileNotFoundError(
-                f"Image not found: {image_path}"
+                "Image file does not exist."
             )
 
-        results = self.model.predict(
-            source=str(image_path),
-            conf=OBJECT_CONFIDENCE_THRESHOLD,
+        image = cv2.imread(str(image_path))
+
+        if image is None:
+            raise ValueError(
+                "Unable to read the uploaded image."
+            )
+
+        return image
+
+    # ======================================
+    # DETECT OBJECTS
+    # ======================================
+
+    def detect_objects(
+        self,
+        image_path,
+        confidence_threshold=None
+    ):
+
+        image = self.validate_image(image_path)
+
+        if confidence_threshold is None:
+            confidence_threshold = OBJECT_CONFIDENCE_THRESHOLD
+
+        if not 0 < confidence_threshold <= 1:
+            raise ValueError(
+                "Confidence threshold must be greater than 0 and at most 1."
+            )
+
+        predictions = self.model.predict(
+            source=image,
+            conf=confidence_threshold,
             verbose=False
         )
 
-        detections = []
+        if not predictions:
+            return []
 
-        for result in results:
+        result = predictions[0]
 
-            for box in result.boxes:
+        detected_objects = []
 
-                class_id = int(box.cls[0].item())
+        if result.boxes is None:
+            return detected_objects
 
-                confidence = float(
-                    box.conf[0].item()
-                )
+        for box in result.boxes:
 
-                coordinates = (
-                    box.xyxy[0].cpu().tolist()
-                )
+            coordinates = (
+                box.xyxy[0]
+                .cpu()
+                .numpy()
+                .tolist()
+            )
 
-                object_name = self.model.names[
-                    class_id
-                ]
+            confidence = float(
+                box.conf[0].item()
+            )
 
-                detections.append({
-                    "object": object_name,
-                    "confidence": round(
-                        confidence, 4
-                    ),
-                    "confidence_percentage": round(
-                        confidence * 100, 2
-                    ),
-                    "box": [
-                        round(value, 2)
-                        for value in coordinates
-                    ]
-                })
+            class_id = int(
+                box.cls[0].item()
+            )
 
-        return detections
+            class_name = self.model.names.get(
+                class_id,
+                str(class_id)
+            )
 
-    def detect_and_save(self, image_path, output_path):
+            detected_objects.append({
+                "object": str(class_name),
+                "confidence": round(confidence, 4),
+                "confidence_percentage": round(
+                    confidence * 100,
+                    2
+                ),
+                "box": {
+                    "x1": round(float(coordinates[0]), 2),
+                    "y1": round(float(coordinates[1]), 2),
+                    "x2": round(float(coordinates[2]), 2),
+                    "y2": round(float(coordinates[3]), 2)
+                }
+            })
 
-        image_path = Path(image_path)
-        output_path = Path(output_path)
+        return detected_objects
 
-        detections = self.detect_objects(
-            image_path
-        )
+    # ======================================
+    # DETECT AND SAVE ANNOTATED IMAGE
+    # ======================================
 
-        results = self.model.predict(
-            source=str(image_path),
-            conf=OBJECT_CONFIDENCE_THRESHOLD,
+    def detect_and_save(
+        self,
+        image_path,
+        output_path,
+        confidence_threshold=None
+    ):
+
+        image = self.validate_image(image_path)
+
+        if confidence_threshold is None:
+            confidence_threshold = OBJECT_CONFIDENCE_THRESHOLD
+
+        predictions = self.model.predict(
+            source=image,
+            conf=confidence_threshold,
             verbose=False
         )
 
-        if not results:
+        if not predictions:
             raise RuntimeError(
-                "YOLO did not return a result."
+                "YOLO did not return a prediction."
             )
 
-        annotated_image = results[0].plot()
+        annotated_image = predictions[0].plot()
+
+        output_path = Path(output_path)
 
         output_path.parent.mkdir(
             parents=True,
             exist_ok=True
         )
 
-        from PIL import Image
+        success = cv2.imwrite(
+            str(output_path),
+            annotated_image
+        )
 
-        Image.fromarray(
-            annotated_image[:, :, ::-1]
-        ).save(output_path)
+        if not success:
+            raise RuntimeError(
+                "Could not save annotated image."
+            )
 
         return {
-            "detections": detections,
-            "output_image": str(output_path)
+            "output_path": str(output_path),
+            "detections": self.detect_objects(
+                image_path,
+                confidence_threshold
+            )
         }
