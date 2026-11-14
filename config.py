@@ -4,6 +4,8 @@ import secrets
 
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 
 # ==========================================
 # PROJECT DIRECTORIES
@@ -19,26 +21,43 @@ KNOWN_FACES_FOLDER = DATA_DIR / "known_faces"
 
 MODEL_FOLDER = BASE_DIR / "models"
 
-DATABASE_PATH = DATA_DIR / "ai_vision_hub.db"
+LOG_FOLDER = BASE_DIR / "logs"
 
 
 # ==========================================
-# ENVIRONMENT CONFIGURATION
+# LOAD ENVIRONMENT VARIABLES
 # ==========================================
+
+load_dotenv(
+    BASE_DIR / ".env"
+)
+
+
+# ==========================================
+# APPLICATION SETTINGS
+# ==========================================
+
+APP_NAME = "AI Vision Hub"
+
+APP_VERSION = "1.0.0"
 
 APP_ENV = os.getenv(
     "APP_ENV",
     "development"
-).lower()
+).strip().lower()
 
-IS_PRODUCTION = APP_ENV == "production"
+IS_PRODUCTION = (
+    APP_ENV == "production"
+)
 
 
 # ==========================================
 # SECRET KEY
 # ==========================================
 
-SECRET_KEY = os.getenv("SECRET_KEY")
+SECRET_KEY = os.getenv(
+    "SECRET_KEY"
+)
 
 if not SECRET_KEY:
 
@@ -50,7 +69,6 @@ if not SECRET_KEY:
 
     SECRET_KEY = secrets.token_hex(32)
 
-
 if len(SECRET_KEY) < 32:
 
     raise RuntimeError(
@@ -59,11 +77,16 @@ if len(SECRET_KEY) < 32:
 
 
 # ==========================================
-# FLASK SETTINGS
+# DEBUG SETTINGS
 # ==========================================
 
-DEBUG = (
-    os.getenv("FLASK_DEBUG", "false").lower() == "true"
+DEBUG = os.getenv(
+    "DEBUG",
+    "false" if IS_PRODUCTION else "true"
+).strip().lower() in (
+    "true",
+    "1",
+    "yes"
 )
 
 if IS_PRODUCTION and DEBUG:
@@ -73,6 +96,10 @@ if IS_PRODUCTION and DEBUG:
     )
 
 
+# ==========================================
+# UPLOAD SETTINGS
+# ==========================================
+
 MAX_CONTENT_LENGTH = int(
     os.getenv(
         "MAX_CONTENT_LENGTH",
@@ -80,22 +107,11 @@ MAX_CONTENT_LENGTH = int(
     )
 )
 
+if MAX_CONTENT_LENGTH <= 0:
 
-# ==========================================
-# COOKIE SECURITY
-# ==========================================
-
-COOKIE_SECURE = (
-    os.getenv(
-        "COOKIE_SECURE",
-        "true" if IS_PRODUCTION else "false"
-    ).lower() == "true"
-)
-
-
-# ==========================================
-# FILE VALIDATION
-# ==========================================
+    raise RuntimeError(
+        "MAX_CONTENT_LENGTH must be positive."
+    )
 
 ALLOWED_IMAGE_EXTENSIONS = {
     "jpg",
@@ -104,54 +120,70 @@ ALLOWED_IMAGE_EXTENSIONS = {
     "webp"
 }
 
-ALLOWED_VIDEO_EXTENSIONS = {
-    "mp4",
-    "avi",
-    "mov"
-}
+
+# ==========================================
+# SECURITY SETTINGS
+# ==========================================
+
+COOKIE_SECURE = os.getenv(
+    "COOKIE_SECURE",
+    "true" if IS_PRODUCTION else "false"
+).strip().lower() in (
+    "true",
+    "1",
+    "yes"
+)
+
+if IS_PRODUCTION and not COOKIE_SECURE:
+
+    raise RuntimeError(
+        "Secure cookies must be enabled in production."
+    )
 
 
 # ==========================================
-# FACE RECOGNITION
+# FACE RECOGNITION SETTINGS
 # ==========================================
 
 FACE_MATCH_THRESHOLD = float(
     os.getenv(
         "FACE_MATCH_THRESHOLD",
-        "0.50"
+        "70"
     )
 )
 
+if FACE_MATCH_THRESHOLD <= 0:
+
+    raise RuntimeError(
+        "FACE_MATCH_THRESHOLD must be positive."
+    )
+
 
 # ==========================================
-# OBJECT DETECTION
+# OBJECT DETECTION SETTINGS
 # ==========================================
 
 OBJECT_CONFIDENCE_THRESHOLD = float(
     os.getenv(
         "OBJECT_CONFIDENCE_THRESHOLD",
-        "0.50"
+        "0.25"
     )
 )
+
+if not 0 <= OBJECT_CONFIDENCE_THRESHOLD <= 1:
+
+    raise RuntimeError(
+        "OBJECT_CONFIDENCE_THRESHOLD must be between 0 and 1."
+    )
 
 
 # ==========================================
 # AI MODEL CONFIGURATION
 # ==========================================
 
-YOLO_MODEL_NAME = os.getenv(
-    "YOLO_MODEL_NAME",
-    "yolov8n.pt"
-)
-
-IMAGE_CLASSIFICATION_MODEL = os.getenv(
-    "IMAGE_CLASSIFICATION_MODEL",
-    "MobileNetV2"
-)
-
 SENTIMENT_MODEL_NAME = os.getenv(
     "SENTIMENT_MODEL_NAME",
-    "distilbert/distilbert-base-uncased-finetuned-sst-2-english"
+    "distilbert-base-uncased-finetuned-sst-2-english"
 )
 
 CHATBOT_MODEL_NAME = os.getenv(
@@ -161,28 +193,79 @@ CHATBOT_MODEL_NAME = os.getenv(
 
 
 # ==========================================
-# APPLICATION INFORMATION
+# DATABASE CONFIGURATION
 # ==========================================
 
-APP_NAME = "AI Vision Hub"
-
-APP_VERSION = "1.0.0"
+DATABASE_PATH = (
+    DATA_DIR / "ai_vision_hub.db"
+)
 
 
 # ==========================================
 # CREATE REQUIRED DIRECTORIES
 # ==========================================
 
-REQUIRED_FOLDERS = [
+REQUIRED_DIRECTORIES = [
     DATA_DIR,
     UPLOAD_FOLDER,
     KNOWN_FACES_FOLDER,
-    MODEL_FOLDER
+    MODEL_FOLDER,
+    LOG_FOLDER
 ]
 
-for folder in REQUIRED_FOLDERS:
+for directory in REQUIRED_DIRECTORIES:
 
-    folder.mkdir(
+    directory.mkdir(
         parents=True,
         exist_ok=True
     )
+
+
+# ==========================================
+# CONFIGURATION SUMMARY
+# ==========================================
+
+def get_config_summary():
+
+    return {
+        "app_name": APP_NAME,
+        "app_version": APP_VERSION,
+        "environment": APP_ENV,
+        "debug": DEBUG,
+        "production": IS_PRODUCTION,
+        "max_content_length": MAX_CONTENT_LENGTH,
+        "allowed_image_extensions": sorted(
+            ALLOWED_IMAGE_EXTENSIONS
+        ),
+        "cookie_secure": COOKIE_SECURE,
+        "face_match_threshold": FACE_MATCH_THRESHOLD,
+        "object_confidence_threshold": (
+            OBJECT_CONFIDENCE_THRESHOLD
+        ),
+        "database_path": str(DATABASE_PATH)
+    }
+
+
+__all__ = [
+    "BASE_DIR",
+    "DATA_DIR",
+    "UPLOAD_FOLDER",
+    "KNOWN_FACES_FOLDER",
+    "MODEL_FOLDER",
+    "LOG_FOLDER",
+    "DATABASE_PATH",
+    "APP_NAME",
+    "APP_VERSION",
+    "APP_ENV",
+    "IS_PRODUCTION",
+    "SECRET_KEY",
+    "DEBUG",
+    "MAX_CONTENT_LENGTH",
+    "ALLOWED_IMAGE_EXTENSIONS",
+    "COOKIE_SECURE",
+    "FACE_MATCH_THRESHOLD",
+    "OBJECT_CONFIDENCE_THRESHOLD",
+    "SENTIMENT_MODEL_NAME",
+    "CHATBOT_MODEL_NAME",
+    "get_config_summary"
+]
