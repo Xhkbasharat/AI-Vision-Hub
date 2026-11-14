@@ -14,7 +14,11 @@ from flask import (
     session
 )
 
-from PIL import Image, UnidentifiedImageError
+from PIL import (
+    Image,
+    UnidentifiedImageError
+)
+
 from werkzeug.utils import secure_filename
 
 from config import (
@@ -22,7 +26,10 @@ from config import (
     DEBUG,
     MAX_CONTENT_LENGTH,
     ALLOWED_IMAGE_EXTENSIONS,
-    UPLOAD_FOLDER
+    UPLOAD_FOLDER,
+    COOKIE_SECURE,
+    APP_NAME,
+    APP_VERSION
 )
 
 from database import Database
@@ -35,36 +42,40 @@ from modules.sentiment_analysis import SentimentAnalyzer
 from modules.fake_news import FakeNewsDetector
 from modules.chatbot import Chatbot
 
+from modules.logger import (
+    app_logger,
+    log_info,
+    log_warning,
+    log_error
+)
+
+from modules.error_handler import (
+    AIVisionHubError,
+    handle_error
+)
+
 
 # ==========================================
-# APPLICATION CONFIGURATION
+# FLASK APPLICATION
 # ==========================================
 
 app = Flask(__name__)
 
-app.config["SECRET_KEY"] = SECRET_KEY
-app.config["MAX_CONTENT_LENGTH"] = MAX_CONTENT_LENGTH
-
-app.config["SESSION_COOKIE_HTTPONLY"] = True
-app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
-
-app.config["SESSION_COOKIE_SECURE"] = (
-    os.environ.get("COOKIE_SECURE", "false").lower() == "true"
+app.config.update(
+    SECRET_KEY=SECRET_KEY,
+    MAX_CONTENT_LENGTH=MAX_CONTENT_LENGTH,
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+    SESSION_COOKIE_SECURE=COOKIE_SECURE,
+    JSON_SORT_KEYS=False
 )
-
-app.config["JSON_SORT_KEYS"] = False
 
 
 # ==========================================
-# LOGGING
+# LOGGER
 # ==========================================
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s"
-)
-
-logger = logging.getLogger("AI-Vision-Hub")
+logger = app_logger
 
 
 # ==========================================
@@ -75,7 +86,7 @@ db = Database()
 
 
 # ==========================================
-# MODEL MANAGEMENT
+# AI MODEL MANAGEMENT
 # ==========================================
 
 model_instances = {}
@@ -83,41 +94,63 @@ model_instances = {}
 model_lock = Lock()
 
 
+MODEL_CLASSES = {
+    "face": FaceRecognition,
+    "objects": ObjectDetection,
+    "classification": ImageClassification,
+    "ml": MLPrediction,
+    "sentiment": SentimentAnalyzer,
+    "chatbot": Chatbot
+}
+
+
 def get_model(name):
-
     """
-    Load an AI model only when it is first requested.
-    Reuse the same instance for later requests.
+    Load an AI model only when required.
+    Reuse the instance for future requests.
     """
 
-    model_classes = {
-        "face": FaceRecognition,
-        "objects": ObjectDetection,
-        "classification": ImageClassification,
-        "ml": MLPrediction,
-        "sentiment": SentimentAnalyzer,
-        "chatbot": Chatbot
-    }
-
-    if name not in model_classes:
+    if name not in MODEL_CLASSES:
         raise ValueError(f"Unknown model: {name}")
 
     with model_lock:
 
         if name not in model_instances:
 
-            logger.info("Loading model: %s", name)
+            logger.info(
+                "Loading AI model: %s",
+                name
+            )
 
-            model_instances[name] = model_classes[name]()
+            try:
+
+                model_instances[name] = MODEL_CLASSES[name]()
+
+                logger.info(
+                    "AI model loaded: %s",
+                    name
+                )
+
+            except Exception:
+
+                logger.exception(
+                    "Could not load AI model: %s",
+                    name
+                )
+
+                raise
 
         return model_instances[name]
 
 
 # ==========================================
-# STANDARD API RESPONSE
+# API RESPONSE HELPERS
 # ==========================================
 
-def success_response(result, message="Operation completed successfully."):
+def success_response(
+    result,
+    message="Operation completed successfully."
+):
 
     return jsonify({
         "success": True,
@@ -126,37 +159,51 @@ def success_response(result, message="Operation completed successfully."):
     })
 
 
-def error_response(message, status_code=400):
+def error_response(
+    message,
+    status_code=400,
+    code="APPLICATION_ERROR"
+):
 
     return jsonify({
         "success": False,
-        "error": message
+        "error": {
+            "code": code,
+            "message": message
+        }
     }), status_code
 
 
 # ==========================================
-# IMAGE VALIDATION AND STORAGE
+# IMAGE VALIDATION
 # ==========================================
 
 def save_image(file):
-
     """
-    Validate an uploaded image and save it
-    using a unique filename.
+    Validate and save an uploaded image.
     """
 
     if file is None or not file.filename:
-        raise ValueError("Please select an image.")
+
+        raise ValueError(
+            "Please select an image."
+        )
 
     filename = secure_filename(file.filename)
 
     if not filename or "." not in filename:
-        raise ValueError("Invalid filename.")
+
+        raise ValueError(
+            "Invalid filename."
+        )
 
     extension = filename.rsplit(".", 1)[1].lower()
 
     if extension not in ALLOWED_IMAGE_EXTENSIONS:
-        raise ValueError("Unsupported image format.")
+
+        raise ValueError(
+            "Unsupported image format."
+        )
 
     try:
 
@@ -173,10 +220,16 @@ def save_image(file):
             width, height = image.size
 
             if width <= 0 or height <= 0:
-                raise ValueError("Invalid image dimensions.")
+
+                raise ValueError(
+                    "Invalid image dimensions."
+                )
 
             if width * height > 25_000_000:
-                raise ValueError("Image dimensions are too large.")
+
+                raise ValueError(
+                    "Image dimensions are too large."
+                )
 
     except (
         UnidentifiedImageError,
@@ -188,7 +241,9 @@ def save_image(file):
             "The uploaded file is not a valid or safe image."
         ) from error
 
-    unique_filename = f"{uuid.uuid4().hex}.{extension}"
+    unique_filename = (
+        f"{uuid.uuid4().hex}.{extension}"
+    )
 
     upload_folder = Path(UPLOAD_FOLDER)
 
@@ -210,9 +265,18 @@ def save_image(file):
             "image"
         )
 
+        logger.info(
+            "Image uploaded successfully: %s",
+            unique_filename
+        )
+
     except Exception:
 
         image_path.unlink(missing_ok=True)
+
+        logger.exception(
+            "Could not record uploaded image."
+        )
 
         raise
 
@@ -226,12 +290,22 @@ def save_image(file):
 @app.route("/", methods=["GET"])
 def home():
 
-    stats = db.get_dashboard_stats()
+    try:
 
-    return render_template(
-        "index.html",
-        stats=stats
-    )
+        stats = db.get_dashboard_stats()
+
+        return render_template(
+            "index.html",
+            stats=stats
+        )
+
+    except Exception:
+
+        logger.exception(
+            "Dashboard loading failed."
+        )
+
+        return "Dashboard unavailable.", 500
 
 
 # ==========================================
@@ -249,7 +323,9 @@ def detect_objects():
 
         detector = get_model("objects")
 
-        results = detector.detect_objects(image_path)
+        results = detector.detect_objects(
+            image_path
+        )
 
         db.save_analysis(
             module_name="object_detection",
@@ -268,10 +344,12 @@ def detect_objects():
 
     except Exception:
 
-        logger.exception("Object detection failed.")
+        logger.exception(
+            "Object detection failed."
+        )
 
         return error_response(
-            "Object detection failed. Check the application logs.",
+            "Object detection failed.",
             500
         )
 
@@ -291,7 +369,9 @@ def classify_image():
 
         classifier = get_model("classification")
 
-        results = classifier.classify_image(image_path)
+        results = classifier.classify_image(
+            image_path
+        )
 
         db.save_analysis(
             module_name="image_classification",
@@ -310,7 +390,9 @@ def classify_image():
 
     except Exception:
 
-        logger.exception("Image classification failed.")
+        logger.exception(
+            "Image classification failed."
+        )
 
         return error_response(
             "Image classification failed.",
@@ -333,10 +415,16 @@ def register_face():
         ).strip()
 
         if not person_name:
-            return error_response("Please enter a person's name.")
+
+            return error_response(
+                "Please enter a person's name."
+            )
 
         if len(person_name) > 50:
-            return error_response("Name must not exceed 50 characters.")
+
+            return error_response(
+                "Name must not exceed 50 characters."
+            )
 
         image_path = save_image(
             request.files.get("image")
@@ -360,7 +448,9 @@ def register_face():
 
     except Exception:
 
-        logger.exception("Face registration failed.")
+        logger.exception(
+            "Face registration failed."
+        )
 
         return error_response(
             "Face registration failed.",
@@ -369,7 +459,7 @@ def register_face():
 
 
 # ==========================================
-# FACE MODEL TRAINING
+# TRAIN FACE RECOGNITION
 # ==========================================
 
 @app.route("/train-faces", methods=["POST"])
@@ -383,15 +473,17 @@ def train_faces():
 
         return success_response(
             result,
-            "Face recognition model training completed."
+            "Face recognition training completed."
         )
 
     except Exception:
 
-        logger.exception("Face model training failed.")
+        logger.exception(
+            "Face training failed."
+        )
 
         return error_response(
-            "Face model training failed.",
+            "Face training failed.",
             500
         )
 
@@ -411,7 +503,9 @@ def recognize_face():
 
         face_system = get_model("face")
 
-        result = face_system.recognize_face(image_path)
+        result = face_system.recognize_face(
+            image_path
+        )
 
         db.save_analysis(
             module_name="face_recognition",
@@ -430,7 +524,9 @@ def recognize_face():
 
     except Exception:
 
-        logger.exception("Face recognition failed.")
+        logger.exception(
+            "Face recognition failed."
+        )
 
         return error_response(
             "Face recognition failed.",
@@ -449,12 +545,27 @@ def sentiment():
 
         data = request.get_json(silent=True) or {}
 
-        text = data.get("text", "").strip()
+        text = data.get(
+            "text",
+            ""
+        )
+
+        if not isinstance(text, str):
+
+            return error_response(
+                "Text must be a string."
+            )
+
+        text = text.strip()
 
         if not text:
-            return error_response("Please enter text to analyze.")
+
+            return error_response(
+                "Please enter text to analyze."
+            )
 
         if len(text) > 5000:
+
             return error_response(
                 "Text must not exceed 5000 characters."
             )
@@ -477,7 +588,9 @@ def sentiment():
 
     except Exception:
 
-        logger.exception("Sentiment analysis failed.")
+        logger.exception(
+            "Sentiment analysis failed."
+        )
 
         return error_response(
             "Sentiment analysis failed.",
@@ -496,14 +609,29 @@ def fake_news():
 
         data = request.get_json(silent=True) or {}
 
-        text = data.get("text", "").strip()
+        text = data.get(
+            "text",
+            ""
+        )
+
+        if not isinstance(text, str):
+
+            return error_response(
+                "Article text must be a string."
+            )
+
+        text = text.strip()
 
         if not text:
-            return error_response("Please enter an article to analyze.")
+
+            return error_response(
+                "Please enter an article."
+            )
 
         if len(text) > 10000:
+
             return error_response(
-                "Article text must not exceed 10000 characters."
+                "Article must not exceed 10000 characters."
             )
 
         detector = FakeNewsDetector()
@@ -531,7 +659,9 @@ def fake_news():
 
     except Exception:
 
-        logger.exception("Fake-news detection failed.")
+        logger.exception(
+            "Fake-news detection failed."
+        )
 
         return error_response(
             "Fake-news detection failed.",
@@ -558,6 +688,7 @@ def ml_prediction():
         )
 
         if not isinstance(values, list) or len(values) != 4:
+
             return error_response(
                 "Exactly four numeric feature values are required."
             )
@@ -566,7 +697,10 @@ def ml_prediction():
             "random_forest",
             "xgboost"
         ]:
-            return error_response("Unsupported prediction model.")
+
+            return error_response(
+                "Unsupported prediction model."
+            )
 
         predictor = get_model("ml")
 
@@ -584,16 +718,20 @@ def ml_prediction():
 
         return success_response(
             result,
-            "Machine learning prediction completed."
+            "Prediction completed."
         )
 
     except (ValueError, TypeError) as error:
 
-        return error_response(str(error))
+        return error_response(
+            str(error)
+        )
 
     except Exception:
 
-        logger.exception("Machine learning prediction failed.")
+        logger.exception(
+            "Machine learning prediction failed."
+        )
 
         return error_response(
             "Machine learning prediction failed.",
@@ -616,9 +754,13 @@ def chatbot():
         ).strip()
 
         if not message:
-            return error_response("Please enter a message.")
+
+            return error_response(
+                "Please enter a message."
+            )
 
         if len(message) > 1000:
+
             return error_response(
                 "Message must not exceed 1000 characters."
             )
@@ -635,7 +777,6 @@ def chatbot():
             history=history
         )
 
-        # Keep a limited conversation history.
         session["chat_history"] = result.get(
             "history",
             []
@@ -650,7 +791,9 @@ def chatbot():
 
     except Exception:
 
-        logger.exception("Chatbot request failed.")
+        logger.exception(
+            "Chatbot request failed."
+        )
 
         return error_response(
             "Chatbot request failed.",
@@ -691,7 +834,9 @@ def analysis_history():
             type=int
         )
 
-        history = db.get_analysis_history(limit)
+        history = db.get_analysis_history(
+            limit
+        )
 
         return success_response(
             history,
@@ -700,7 +845,9 @@ def analysis_history():
 
     except Exception:
 
-        logger.exception("Could not retrieve analysis history.")
+        logger.exception(
+            "Analysis history retrieval failed."
+        )
 
         return error_response(
             "Could not retrieve analysis history.",
@@ -717,44 +864,59 @@ def health():
 
     return jsonify({
         "status": "healthy",
-        "application": "AI Vision Hub",
-        "version": "1.0.0"
+        "application": APP_NAME,
+        "version": APP_VERSION
     }), 200
 
 
 # ==========================================
-# REQUEST SIZE ERROR
+# REQUEST TOO LARGE
 # ==========================================
 
 @app.errorhandler(413)
 def request_entity_too_large(error):
 
     return error_response(
-        "Uploaded file is too large. Maximum size is 10 MB.",
-        413
+        "Uploaded file is too large.",
+        413,
+        "FILE_TOO_LARGE"
     )
 
 
 # ==========================================
-# GENERAL ERROR HANDLER
+# GLOBAL ERROR HANDLER
 # ==========================================
 
 @app.errorhandler(500)
 def internal_server_error(error):
 
-    logger.error("Internal server error: %s", error)
+    logger.exception(
+        "Internal server error."
+    )
 
     return error_response(
         "An internal server error occurred.",
-        500
+        500,
+        "INTERNAL_SERVER_ERROR"
     )
 
 
 # ==========================================
-# APPLICATION ENTRY POINT
+# APPLICATION STARTUP
 # ==========================================
 
 if __name__ == "__main__":
+
+    logger.info(
+        "Starting %s version %s",
+        APP_NAME,
+        APP_VERSION
+    )
+
+    logger.info(
+        "Debug mode: %s",
+        DEBUG
+    )
 
     app.run(
         host="127.0.0.1",
