@@ -1,86 +1,772 @@
 
-<section class="tool-card" id="ml-prediction">
-    <div class="tool-header">
-        <div>
-            <span class="tool-tag">MACHINE LEARNING</span>
-            <h2>Iris Flower Prediction</h2>
-            <p>Classify a flower using four measurements.</p>
-        </div>
-    </div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <form id="mlPredictionForm" class="tool-form">
-        <div class="form-grid">
-            <div class="form-group">
-                <label for="sepalLength">Sepal length (cm)</label>
-                <input
-                    type="number"
-                    id="sepalLength"
-                    name="sepal_length"
-                    min="0.1"
-                    max="10"
-                    step="0.1"
-                    placeholder="Example: 5.1"
-                    required
-                >
-            </div>
+    <title>AI Vision Hub</title>
 
-            <div class="form-group">
-                <label for="sepalWidth">Sepal width (cm)</label>
-                <input
-                    type="number"
-                    id="sepalWidth"
-                    name="sepal_width"
-                    min="0.1"
-                    max="10"
-                    step="0.1"
-                    placeholder="Example: 3.5"
-                    required
-                >
-            </div>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
-            <div class="form-group">
-                <label for="petalLength">Petal length (cm)</label>
-                <input
-                    type="number"
-                    id="petalLength"
-                    name="petal_length"
-                    min="0.1"
-                    max="10"
-                    step="0.1"
-                    placeholder="Example: 1.4"
-                    required
-                >
-            </div>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Orbitron:wght@500;600;700&display=swap" rel="stylesheet">
 
-            <div class="form-group">
-                <label for="petalWidth">Petal width (cm)</label>
-                <input
-                    type="number"
-                    id="petalWidth"
-                    name="petal_width"
-                    min="0.1"
-                    max="10"
-                    step="0.1"
-                    placeholder="Example: 0.2"
-                    required
-                >
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+<div class="app-container">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+
+        <div class="brand">
+            <div class="brand-icon">AI</div>
+            <div>
+                <h2>VISION HUB</h2>
+                <span>INTELLIGENCE PLATFORM</span>
             </div>
         </div>
 
-        <div class="form-group">
-            <label for="mlModel">Choose ML algorithm</label>
-            <select id="mlModel" name="model">
-                <option value="random_forest">Random Forest</option>
-                <option value="xgboost">XGBoost</option>
-            </select>
+        <nav class="sidebar-nav">
+            <a href="#dashboard">Dashboard</a>
+            <a href="#computer-vision">Computer Vision</a>
+            <a href="#machine-learning">Machine Learning</a>
+            <a href="#nlp">Language AI</a>
+            <a href="#chatbot-section">AI Chatbot</a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <span class="status-dot"></span>
+            AI SYSTEM READY
         </div>
 
-        <button type="submit" class="primary-button">
-            Predict Flower
-        </button>
-    </form>
+    </aside>
 
-    <div id="mlPredictionResult" class="result-box" aria-live="polite">
-        Your prediction will appear here.
-    </div>
-</section>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+
+        <!-- TOP HEADER -->
+        <header class="topbar" id="dashboard">
+
+            <div>
+                <span class="eyebrow">ARTIFICIAL INTELLIGENCE PLATFORM</span>
+                <h1>AI Vision Hub</h1>
+                <p>One platform. Multiple AI capabilities.</p>
+            </div>
+
+            <div class="version-label">
+                VERSION 1.0.0
+            </div>
+
+        </header>
+
+
+        <!-- STATISTICS -->
+        <section class="stats-grid">
+
+            <div class="stat-card">
+                <span class="stat-label">TOTAL UPLOADS</span>
+                <h2>{{ stats.get('total_uploads', 0) }}</h2>
+                <span class="stat-description">Images processed</span>
+            </div>
+
+            <div class="stat-card">
+                <span class="stat-label">REGISTERED FACES</span>
+                <h2>{{ stats.get('registered_faces', 0) }}</h2>
+                <span class="stat-description">Distinct registered names</span>
+            </div>
+
+            <div class="stat-card">
+                <span class="stat-label">AI ANALYSES</span>
+                <h2>{{ stats.get('total_analyses', 0) }}</h2>
+                <span class="stat-description">Saved analysis records</span>
+            </div>
+
+        </section>
+
+
+        <!-- COMPUTER VISION -->
+        <section class="dashboard-section" id="computer-vision">
+
+            <div class="section-heading">
+                <span class="section-tag">01 / COMPUTER VISION</span>
+                <h2>Vision Intelligence</h2>
+                <p>Analyze images using computer vision and deep learning.</p>
+            </div>
+
+
+            <div class="tools-grid">
+
+                <!-- OBJECT DETECTION -->
+                <div class="tool-card">
+
+                    <span class="tool-tag">YOLO</span>
+                    <h3>Object Detection</h3>
+                    <p>Identify and locate objects in an image.</p>
+
+                    <form class="api-form" data-endpoint="/detect-objects" data-type="image">
+                        <label>Select image</label>
+                        <input type="file" name="image" accept="image/jpeg,image/png,image/webp" required>
+
+                        <button type="submit" class="primary-button">
+                            Detect Objects
+                        </button>
+                    </form>
+
+                    <div class="result-box" aria-live="polite">
+                        Results will appear here.
+                    </div>
+
+                </div>
+
+
+                <!-- IMAGE CLASSIFICATION -->
+                <div class="tool-card">
+
+                    <span class="tool-tag">MOBILENETV2</span>
+                    <h3>Image Classification</h3>
+                    <p>Classify an image using the ImageNet model.</p>
+
+                    <form class="api-form" data-endpoint="/classify-image" data-type="image">
+                        <label>Select image</label>
+                        <input type="file" name="image" accept="image/jpeg,image/png,image/webp" required>
+
+                        <button type="submit" class="primary-button">
+                            Classify Image
+                        </button>
+                    </form>
+
+                    <div class="result-box" aria-live="polite">
+                        Results will appear here.
+                    </div>
+
+                </div>
+
+
+                <!-- FACE REGISTRATION -->
+                <div class="tool-card">
+
+                    <span class="tool-tag">OPENCV LBPH</span>
+                    <h3>Face Registration</h3>
+                    <p>Register a person's face with their consent.</p>
+
+                    <form class="api-form" data-endpoint="/register-face" data-type="image">
+                        <label>Person name</label>
+                        <input type="text" name="person_name" maxlength="50" placeholder="Enter person name" required>
+
+                        <label>Select face image</label>
+                        <input type="file" name="image" accept="image/jpeg,image/png,image/webp" required>
+
+                        <button type="submit" class="primary-button">
+                            Register Face
+                        </button>
+                    </form>
+
+                    <div class="result-box" aria-live="polite">
+                        Registration result will appear here.
+                    </div>
+
+                </div>
+
+
+                <!-- FACE TRAINING -->
+                <div class="tool-card">
+
+                    <span class="tool-tag">FACE MODEL</span>
+                    <h3>Train Face Model</h3>
+                    <p>Train the recognizer using registered face images.</p>
+
+                    <button
+                        type="button"
+                        class="primary-button action-button"
+                        data-endpoint="/train-faces"
+                    >
+                        Train Face Model
+                    </button>
+
+                    <div class="result-box" aria-live="polite">
+                        Training result will appear here.
+                    </div>
+
+                </div>
+
+
+                <!-- FACE RECOGNITION -->
+                <div class="tool-card">
+
+                    <span class="tool-tag">FACE RECOGNITION</span>
+                    <h3>Recognize Face</h3>
+                    <p>Compare a face against the registered dataset.</p>
+
+                    <form class="api-form" data-endpoint="/recognize-face" data-type="image">
+                        <label>Select image</label>
+                        <input type="file" name="image" accept="image/jpeg,image/png,image/webp" required>
+
+                        <button type="submit" class="primary-button">
+                            Recognize Face
+                        </button>
+                    </form>
+
+                    <div class="result-box" aria-live="polite">
+                        Recognition result will appear here.
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- MACHINE LEARNING -->
+        <section class="dashboard-section" id="machine-learning">
+
+            <div class="section-heading">
+                <span class="section-tag">02 / MACHINE LEARNING</span>
+                <h2>Predictive Intelligence</h2>
+                <p>Explore classical machine-learning algorithms.</p>
+            </div>
+
+            <div class="tool-card" id="ml-prediction">
+
+                <div class="tool-header">
+                    <span class="tool-tag">IRIS CLASSIFICATION</span>
+                    <h3>Flower Species Prediction</h3>
+                    <p>Enter four flower measurements in centimetres.</p>
+                </div>
+
+                <form id="mlPredictionForm" class="tool-form">
+
+                    <div class="form-grid">
+
+                        <div class="form-group">
+                            <label for="sepalLength">Sepal length (cm)</label>
+                            <input type="number" id="sepalLength" name="sepal_length" min="0.1" max="10" step="0.1" placeholder="5.1" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="sepalWidth">Sepal width (cm)</label>
+                            <input type="number" id="sepalWidth" name="sepal_width" min="0.1" max="10" step="0.1" placeholder="3.5" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="petalLength">Petal length (cm)</label>
+                            <input type="number" id="petalLength" name="petal_length" min="0.1" max="10" step="0.1" placeholder="1.4" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="petalWidth">Petal width (cm)</label>
+                            <input type="number" id="petalWidth" name="petal_width" min="0.1" max="10" step="0.1" placeholder="0.2" required>
+                        </div>
+
+                    </div>
+
+                    <div class="form-group">
+                        <label for="mlModel">Choose algorithm</label>
+
+                        <select id="mlModel" name="model">
+                            <option value="random_forest">Random Forest</option>
+                            <option value="xgboost">XGBoost</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="primary-button">
+                        Predict Flower
+                    </button>
+
+                </form>
+
+                <div id="mlPredictionResult" class="result-box" aria-live="polite">
+                    Your prediction will appear here.
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- NLP -->
+        <section class="dashboard-section" id="nlp">
+
+            <div class="section-heading">
+                <span class="section-tag">03 / NATURAL LANGUAGE PROCESSING</span>
+                <h2>Language Intelligence</h2>
+                <p>Analyze text and explore language models.</p>
+            </div>
+
+            <div class="tools-grid">
+
+                <!-- SENTIMENT -->
+                <div class="tool-card">
+
+                    <span class="tool-tag">DISTILBERT</span>
+                    <h3>Sentiment Analysis</h3>
+                    <p>Analyze whether text expresses positive or negative sentiment.</p>
+
+                    <form class="api-form" data-endpoint="/sentiment" data-type="json">
+
+                        <label>Enter text</label>
+
+                        <textarea name="text" maxlength="5000" placeholder="Enter text to analyze..." required></textarea>
+
+                        <button type="submit" class="primary-button">
+                            Analyze Sentiment
+                        </button>
+
+                    </form>
+
+                    <div class="result-box" aria-live="polite">
+                        Sentiment result will appear here.
+                    </div>
+
+                </div>
+
+
+                <!-- FAKE NEWS -->
+                <div class="tool-card">
+
+                    <span class="tool-tag">TF-IDF + LOGISTIC REGRESSION</span>
+                    <h3>Fake News Classification</h3>
+                    <p>Classify text using a trained labelled dataset.</p>
+
+                    <form class="api-form" data-endpoint="/fake-news" data-type="json">
+
+                        <label>Enter news text</label>
+
+                        <textarea name="text" maxlength="10000" placeholder="Paste a news article or headline..." required></textarea>
+
+                        <button type="submit" class="primary-button">
+                            Analyze News
+                        </button>
+
+                    </form>
+
+                    <div class="result-box" aria-live="polite">
+                        Classification result will appear here.
+                    </div>
+
+                    <p class="small-note">
+                        This classifier does not independently fact-check news claims.
+                    </p>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- CHATBOT -->
+        <section class="dashboard-section" id="chatbot-section">
+
+            <div class="section-heading">
+                <span class="section-tag">04 / CONVERSATIONAL AI</span>
+                <h2>AI Assistant</h2>
+                <p>Chat with the DialoGPT conversational model.</p>
+            </div>
+
+            <div class="tool-card chatbot-card">
+
+                <span class="tool-tag">DIALOGPT SMALL</span>
+                <h3>AI Chatbot</h3>
+
+                <div id="chatMessages" class="chat-messages" aria-live="polite">
+                    <div class="chat-message assistant-message">
+                        Hello! Welcome to AI Vision Hub. How can I help?
+                    </div>
+                </div>
+
+                <form id="chatForm" class="chat-form">
+
+                    <input
+                        type="text"
+                        id="chatInput"
+                        name="message"
+                        maxlength="1000"
+                        placeholder="Type your message..."
+                        required
+                    >
+
+                    <button type="submit" class="primary-button">
+                        Send
+                    </button>
+
+                </form>
+
+                <button
+                    type="button"
+                    id="resetChatButton"
+                    class="secondary-button"
+                >
+                    Reset Conversation
+                </button>
+
+            </div>
+
+        </section>
+
+
+        <!-- FOOTER -->
+        <footer class="dashboard-footer">
+            <p>AI Vision Hub © 2026</p>
+            <span>One Platform. Multiple AI Capabilities.</span>
+        </footer>
+
+    </main>
+
+</div>
+
+
+<!-- DASHBOARD JAVASCRIPT -->
+<script>
+
+    // ======================================
+    // DISPLAY SAFE RESULTS
+    // ======================================
+
+    function displayResult(element, data) {
+
+        element.textContent = "";
+
+        const output = document.createElement("pre");
+
+        output.textContent = JSON.stringify(
+            data,
+            null,
+            2
+        );
+
+        element.appendChild(output);
+    }
+
+
+    // ======================================
+    // GENERIC API FORM HANDLER
+    // ======================================
+
+    document.querySelectorAll(".api-form").forEach(form => {
+
+        form.addEventListener("submit", async event => {
+
+            event.preventDefault();
+
+            const resultBox = form.parentElement.querySelector(".result-box");
+            const button = form.querySelector("button[type='submit']");
+
+            const endpoint = form.dataset.endpoint;
+            const type = form.dataset.type;
+
+            button.disabled = true;
+            resultBox.textContent = "Processing...";
+
+            try {
+
+                let response;
+
+                if (type === "image") {
+
+                    const formData = new FormData(form);
+
+                    response = await fetch(endpoint, {
+                        method: "POST",
+                        body: formData
+                    });
+
+                } else {
+
+                    const formData = new FormData(form);
+
+                    const payload = {
+                        text: formData.get("text")
+                    };
+
+                    response = await fetch(endpoint, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify(payload)
+                    });
+
+                }
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || "Request failed.");
+                }
+
+                displayResult(resultBox, data);
+
+            } catch (error) {
+
+                resultBox.textContent = "Error: " + error.message;
+
+            } finally {
+
+                button.disabled = false;
+
+            }
+
+        });
+
+    });
+
+
+    // ======================================
+    // FACE TRAINING BUTTON
+    // ======================================
+
+    document.querySelectorAll(".action-button").forEach(button => {
+
+        button.addEventListener("click", async () => {
+
+            const resultBox = button.parentElement.querySelector(".result-box");
+
+            button.disabled = true;
+            resultBox.textContent = "Training face model...";
+
+            try {
+
+                const response = await fetch(
+                    button.dataset.endpoint,
+                    {
+                        method: "POST"
+                    }
+                );
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || "Training failed.");
+                }
+
+                displayResult(resultBox, data);
+
+            } catch (error) {
+
+                resultBox.textContent = "Error: " + error.message;
+
+            } finally {
+
+                button.disabled = false;
+
+            }
+
+        });
+
+    });
+
+
+    // ======================================
+    // IRIS ML PREDICTION
+    // ======================================
+
+    document
+        .getElementById("mlPredictionForm")
+        .addEventListener("submit", async event => {
+
+            event.preventDefault();
+
+            const form = event.currentTarget;
+
+            const result = document.getElementById(
+                "mlPredictionResult"
+            );
+
+            const values = [
+                Number(form.elements.sepal_length.value),
+                Number(form.elements.sepal_width.value),
+                Number(form.elements.petal_length.value),
+                Number(form.elements.petal_width.value)
+            ];
+
+            if (values.some(
+                value => !Number.isFinite(value) || value <= 0
+            )) {
+                result.textContent = "Enter four valid positive measurements.";
+                return;
+            }
+
+            result.textContent = "Analyzing flower measurements...";
+
+            try {
+
+                const response = await fetch("/ml-prediction", {
+
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+
+                    body: JSON.stringify({
+                        values: values,
+                        model: form.elements.model.value
+                    })
+
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || "Prediction failed.");
+                }
+
+                displayResult(result, data);
+
+            } catch (error) {
+
+                result.textContent = "Error: " + error.message;
+
+            }
+
+        });
+
+
+    // ======================================
+    // CHATBOT MESSAGE DISPLAY
+    // ======================================
+
+    function addChatMessage(message, sender) {
+
+        const chatMessages = document.getElementById(
+            "chatMessages"
+        );
+
+        const messageElement = document.createElement("div");
+
+        messageElement.className =
+            sender === "user"
+                ? "chat-message user-message"
+                : "chat-message assistant-message";
+
+        messageElement.textContent = message;
+
+        chatMessages.appendChild(messageElement);
+
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+
+    // ======================================
+    // CHATBOT FORM
+    // ======================================
+
+    document
+        .getElementById("chatForm")
+        .addEventListener("submit", async event => {
+
+            event.preventDefault();
+
+            const form = event.currentTarget;
+
+            const input = document.getElementById("chatInput");
+
+            const message = input.value.trim();
+
+            if (!message) {
+                return;
+            }
+
+            const button = form.querySelector("button");
+
+            addChatMessage(message, "user");
+
+            input.value = "";
+
+            button.disabled = true;
+
+            addChatMessage("Thinking...", "assistant");
+
+            const chatMessages = document.getElementById(
+                "chatMessages"
+            );
+
+            const temporaryMessage = chatMessages.lastElementChild;
+
+            try {
+
+                const formData = new FormData();
+
+                formData.append("message", message);
+
+                const response = await fetch("/chatbot", {
+                    method: "POST",
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || "Chatbot request failed.");
+                }
+
+                temporaryMessage.textContent =
+                    data.response || "No response received.";
+
+            } catch (error) {
+
+                temporaryMessage.textContent =
+                    "Error: " + error.message;
+
+            } finally {
+
+                button.disabled = false;
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+
+            }
+
+        });
+
+
+    // ======================================
+    // RESET CHAT
+    // ======================================
+
+    document
+        .getElementById("resetChatButton")
+        .addEventListener("click", async () => {
+
+            const chatMessages = document.getElementById(
+                "chatMessages"
+            );
+
+            try {
+
+                const response = await fetch("/reset-chat", {
+                    method: "POST"
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || "Could not reset chat.");
+                }
+
+                chatMessages.innerHTML = "";
+
+                addChatMessage(
+                    "Conversation reset. How can I help?",
+                    "assistant"
+                );
+
+            } catch (error) {
+
+                addChatMessage(
+                    "Error: " + error.message,
+                    "assistant"
+                );
+
+            }
+
+        });
+
+</script>
+
+</body>
+</html>
