@@ -1,25 +1,20 @@
 
 import logging
-import os
-import uuid
+import secrets
 
 from pathlib import Path
-from threading import Lock
 
 from flask import (
     Flask,
-    jsonify,
     render_template,
     request,
+    jsonify,
     session
 )
 
-from PIL import (
-    Image,
-    UnidentifiedImageError
-)
-
 from werkzeug.utils import secure_filename
+
+from PIL import Image, UnidentifiedImageError
 
 from config import (
     SECRET_KEY,
@@ -49,15 +44,10 @@ from modules.logger import (
     log_error
 )
 
-from modules.error_handler import (
-    AIVisionHubError,
-    handle_error
-)
 
-
-# ==========================================
-# FLASK APPLICATION
-# ==========================================
+# ======================================
+# APPLICATION CONFIGURATION
+# ======================================
 
 app = Flask(__name__)
 
@@ -65,104 +55,40 @@ app.config.update(
     SECRET_KEY=SECRET_KEY,
     MAX_CONTENT_LENGTH=MAX_CONTENT_LENGTH,
     SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SAMESITE="Lax",
     SESSION_COOKIE_SECURE=COOKIE_SECURE,
-    JSON_SORT_KEYS=False
+    SESSION_COOKIE_SAMESITE="Lax"
 )
 
+app.logger.handlers = app_logger.handlers
+app.logger.setLevel(app_logger.level)
 
-# ==========================================
-# LOGGER
-# ==========================================
+database = Database()
 
-logger = app_logger
-
-
-# ==========================================
-# DATABASE
-# ==========================================
-
-db = Database()
+# Cache expensive models after initialization.
+model_cache = {}
 
 
-# ==========================================
-# AI MODEL MANAGEMENT
-# ==========================================
-
-model_instances = {}
-
-model_lock = Lock()
-
-
-MODEL_CLASSES = {
-    "face": FaceRecognition,
-    "objects": ObjectDetection,
-    "classification": ImageClassification,
-    "ml": MLPrediction,
-    "sentiment": SentimentAnalyzer,
-    "chatbot": Chatbot
-}
-
-
-def get_model(name):
-    """
-    Load an AI model only when required.
-    Reuse the instance for future requests.
-    """
-
-    if name not in MODEL_CLASSES:
-        raise ValueError(f"Unknown model: {name}")
-
-    with model_lock:
-
-        if name not in model_instances:
-
-            logger.info(
-                "Loading AI model: %s",
-                name
-            )
-
-            try:
-
-                model_instances[name] = MODEL_CLASSES[name]()
-
-                logger.info(
-                    "AI model loaded: %s",
-                    name
-                )
-
-            except Exception:
-
-                logger.exception(
-                    "Could not load AI model: %s",
-                    name
-                )
-
-                raise
-
-        return model_instances[name]
-
-
-# ==========================================
+# ======================================
 # API RESPONSE HELPERS
-# ==========================================
+# ======================================
 
 def success_response(
-    result,
-    message="Operation completed successfully."
+    result=None,
+    message="Operation completed successfully.",
+    status_code=200
 ):
 
     return jsonify({
         "success": True,
         "message": message,
         "result": result
-    })
+    }), status_code
 
 
 def error_response(
     message,
     status_code=400,
-    code="APPLICATION_ERROR"
+    code="REQUEST_ERROR"
 ):
 
     return jsonify({
@@ -174,30 +100,65 @@ def error_response(
     }), status_code
 
 
-# ==========================================
-# IMAGE VALIDATION
-# ==========================================
+# ======================================
+# MODEL LOADER
+# ======================================
+
+def get_model(model_name):
+
+    model_classes = {
+        "face": FaceRecognition,
+        "objects": ObjectDetection,
+        "classification": ImageClassification,
+        "ml": MLPrediction,
+        "sentiment": SentimentAnalyzer,
+        "chatbot": Chatbot
+    }
+
+    if model_name not in model_classes:
+
+        raise ValueError(
+            "Unknown model requested."
+        )
+
+    if model_name not in model_cache:
+
+        log_info(
+            f"Loading model: {model_name}"
+        )
+
+        model_cache[model_name] = (
+            model_classes[model_name]()
+        )
+
+    return model_cache[model_name]
+
+
+# ======================================
+# IMAGE UPLOAD VALIDATION
+# ======================================
 
 def save_image(file):
-    """
-    Validate and save an uploaded image.
-    """
 
-    if file is None or not file.filename:
+    if not file or not file.filename:
 
         raise ValueError(
             "Please select an image."
         )
 
-    filename = secure_filename(file.filename)
+    original_filename = secure_filename(
+        file.filename
+    )
 
-    if not filename or "." not in filename:
+    if not original_filename:
 
         raise ValueError(
             "Invalid filename."
         )
 
-    extension = filename.rsplit(".", 1)[1].lower()
+    extension = Path(
+        original_filename
+    ).suffix.lower().lstrip(".")
 
     if extension not in ALLOWED_IMAGE_EXTENSIONS:
 
@@ -205,31 +166,43 @@ def save_image(file):
             "Unsupported image format."
         )
 
+    upload_directory = Path(
+        UPLOAD_FOLDER
+    )
+
+    upload_directory.mkdir(
+        parents=True,
+        exist_ok=True
+    )
+
+    # Verify image content rather than trusting extension.
     try:
 
-        file.stream.seek(0)
+        image = Image.open(file.stream)
 
-        with Image.open(file.stream) as image:
-
-            image.verify()
+        image.verify()
 
         file.stream.seek(0)
 
-        with Image.open(file.stream) as image:
+        image = Image.open(file.stream)
 
-            width, height = image.size
+        image_width, image_height = image.size
 
-            if width <= 0 or height <= 0:
+        if image_width <= 0 or image_height <= 0:
 
-                raise ValueError(
-                    "Invalid image dimensions."
-                )
+            raise ValueError(
+                "Invalid image dimensions."
+            )
 
-            if width * height > 25_000_000:
+        if image_width * image_height > 25_000_000:
 
-                raise ValueError(
-                    "Image dimensions are too large."
-                )
+            raise ValueError(
+                "Image dimensions exceed the permitted limit."
+            )
+
+        image.verify()
+
+        file.stream.seek(0)
 
     except (
         UnidentifiedImageError,
@@ -238,81 +211,111 @@ def save_image(file):
     ) as error:
 
         raise ValueError(
-            "The uploaded file is not a valid or safe image."
+            "Uploaded file is not a valid image."
         ) from error
 
-    unique_filename = (
-        f"{uuid.uuid4().hex}.{extension}"
+    filename = (
+        f"{secrets.token_hex(16)}.{extension}"
     )
 
-    upload_folder = Path(UPLOAD_FOLDER)
-
-    upload_folder.mkdir(
-        parents=True,
-        exist_ok=True
+    destination = (
+        upload_directory / filename
     )
 
-    image_path = upload_folder / unique_filename
-
-    file.stream.seek(0)
-
-    file.save(str(image_path))
+    file.save(destination)
 
     try:
 
-        db.add_upload(
-            unique_filename,
-            "image"
-        )
-
-        logger.info(
-            "Image uploaded successfully: %s",
-            unique_filename
+        database.add_upload(
+            filename,
+            extension
         )
 
     except Exception:
 
-        image_path.unlink(missing_ok=True)
-
-        logger.exception(
-            "Could not record uploaded image."
+        destination.unlink(
+            missing_ok=True
         )
 
         raise
 
-    return str(image_path)
+    log_info(
+        f"Image uploaded successfully: {filename}"
+    )
+
+    return str(destination)
 
 
-# ==========================================
-# HOME DASHBOARD
-# ==========================================
+# ======================================
+# SAVE ANALYSIS
+# ======================================
+
+def record_analysis(
+    module_name,
+    input_text,
+    result
+):
+
+    confidence = None
+
+    if isinstance(result, dict):
+
+        confidence = result.get(
+            "confidence"
+        )
+
+    database.save_analysis(
+        module_name,
+        input_text,
+        result,
+        confidence
+    )
+
+
+# ======================================
+# DASHBOARD
+# ======================================
 
 @app.route("/", methods=["GET"])
-def home():
+def index():
 
     try:
 
-        stats = db.get_dashboard_stats()
+        stats = database.get_dashboard_stats()
 
         return render_template(
             "index.html",
-            stats=stats
+            stats=stats,
+            app_name=APP_NAME,
+            app_version=APP_VERSION
         )
 
     except Exception:
 
-        logger.exception(
+        log_error(
             "Dashboard loading failed."
         )
 
-        return "Dashboard unavailable.", 500
+        return render_template(
+            "index.html",
+            stats={
+                "total_uploads": 0,
+                "registered_faces": 0,
+                "total_analyses": 0
+            },
+            app_name=APP_NAME,
+            app_version=APP_VERSION
+        )
 
 
-# ==========================================
+# ======================================
 # OBJECT DETECTION
-# ==========================================
+# ======================================
 
-@app.route("/detect-objects", methods=["POST"])
+@app.route(
+    "/detect-objects",
+    methods=["POST"]
+)
 def detect_objects():
 
     try:
@@ -323,42 +326,49 @@ def detect_objects():
 
         detector = get_model("objects")
 
-        results = detector.detect_objects(
+        result = detector.detect_objects(
             image_path
         )
 
-        db.save_analysis(
-            module_name="object_detection",
-            input_text=Path(image_path).name,
-            result=str(results)
+        record_analysis(
+            "object_detection",
+            Path(image_path).name,
+            result
         )
 
         return success_response(
-            results,
+            result,
             "Object detection completed."
         )
 
     except ValueError as error:
 
-        return error_response(str(error))
+        return error_response(
+            str(error),
+            400
+        )
 
     except Exception:
 
-        logger.exception(
-            "Object detection failed."
+        log_error(
+            "Object detection request failed."
         )
 
         return error_response(
-            "Object detection failed.",
-            500
+            "Unable to process object detection.",
+            500,
+            "OBJECT_DETECTION_ERROR"
         )
 
 
-# ==========================================
+# ======================================
 # IMAGE CLASSIFICATION
-# ==========================================
+# ======================================
 
-@app.route("/classify-image", methods=["POST"])
+@app.route(
+    "/classify-image",
+    methods=["POST"]
+)
 def classify_image():
 
     try:
@@ -367,44 +377,53 @@ def classify_image():
             request.files.get("image")
         )
 
-        classifier = get_model("classification")
+        classifier = get_model(
+            "classification"
+        )
 
-        results = classifier.classify_image(
+        result = classifier.classify_image(
             image_path
         )
 
-        db.save_analysis(
-            module_name="image_classification",
-            input_text=Path(image_path).name,
-            result=str(results)
+        record_analysis(
+            "image_classification",
+            Path(image_path).name,
+            result
         )
 
         return success_response(
-            results,
+            result,
             "Image classification completed."
         )
 
     except ValueError as error:
 
-        return error_response(str(error))
+        return error_response(
+            str(error),
+            400
+        )
 
     except Exception:
 
-        logger.exception(
-            "Image classification failed."
+        log_error(
+            "Image classification request failed."
         )
 
         return error_response(
-            "Image classification failed.",
-            500
+            "Unable to classify the image.",
+            500,
+            "IMAGE_CLASSIFICATION_ERROR"
         )
 
 
-# ==========================================
-# FACE REGISTRATION
-# ==========================================
+# ======================================
+# REGISTER FACE
+# ======================================
 
-@app.route("/register-face", methods=["POST"])
+@app.route(
+    "/register-face",
+    methods=["POST"]
+)
 def register_face():
 
     try:
@@ -416,14 +435,8 @@ def register_face():
 
         if not person_name:
 
-            return error_response(
-                "Please enter a person's name."
-            )
-
-        if len(person_name) > 50:
-
-            return error_response(
-                "Name must not exceed 50 characters."
+            raise ValueError(
+                "Person name is required."
             )
 
         image_path = save_image(
@@ -437,32 +450,45 @@ def register_face():
             image_path
         )
 
+        record_analysis(
+            "face_registration",
+            person_name,
+            result
+        )
+
         return success_response(
             result,
-            "Face registration completed."
+            "Face registered successfully."
         )
 
     except ValueError as error:
 
-        return error_response(str(error))
+        return error_response(
+            str(error),
+            400
+        )
 
     except Exception:
 
-        logger.exception(
-            "Face registration failed."
+        log_error(
+            "Face registration request failed."
         )
 
         return error_response(
-            "Face registration failed.",
-            500
+            "Unable to register the face.",
+            500,
+            "FACE_REGISTRATION_ERROR"
         )
 
 
-# ==========================================
-# TRAIN FACE RECOGNITION
-# ==========================================
+# ======================================
+# TRAIN FACE MODEL
+# ======================================
 
-@app.route("/train-faces", methods=["POST"])
+@app.route(
+    "/train-faces",
+    methods=["POST"]
+)
 def train_faces():
 
     try:
@@ -471,28 +497,45 @@ def train_faces():
 
         result = face_system.train_model()
 
+        record_analysis(
+            "face_training",
+            "Registered face dataset",
+            result
+        )
+
         return success_response(
             result,
-            "Face recognition training completed."
+            "Face model training completed."
+        )
+
+    except ValueError as error:
+
+        return error_response(
+            str(error),
+            400
         )
 
     except Exception:
 
-        logger.exception(
-            "Face training failed."
+        log_error(
+            "Face model training failed."
         )
 
         return error_response(
-            "Face training failed.",
-            500
+            "Unable to train the face recognition model.",
+            500,
+            "FACE_TRAINING_ERROR"
         )
 
 
-# ==========================================
-# FACE RECOGNITION
-# ==========================================
+# ======================================
+# RECOGNIZE FACE
+# ======================================
 
-@app.route("/recognize-face", methods=["POST"])
+@app.route(
+    "/recognize-face",
+    methods=["POST"]
+)
 def recognize_face():
 
     try:
@@ -507,10 +550,10 @@ def recognize_face():
             image_path
         )
 
-        db.save_analysis(
-            module_name="face_recognition",
-            input_text=Path(image_path).name,
-            result=str(result)
+        record_analysis(
+            "face_recognition",
+            Path(image_path).name,
+            result
         )
 
         return success_response(
@@ -520,30 +563,39 @@ def recognize_face():
 
     except ValueError as error:
 
-        return error_response(str(error))
+        return error_response(
+            str(error),
+            400
+        )
 
     except Exception:
 
-        logger.exception(
-            "Face recognition failed."
+        log_error(
+            "Face recognition request failed."
         )
 
         return error_response(
-            "Face recognition failed.",
-            500
+            "Unable to recognize faces.",
+            500,
+            "FACE_RECOGNITION_ERROR"
         )
 
 
-# ==========================================
+# ======================================
 # SENTIMENT ANALYSIS
-# ==========================================
+# ======================================
 
-@app.route("/sentiment", methods=["POST"])
+@app.route(
+    "/sentiment",
+    methods=["POST"]
+)
 def sentiment():
 
     try:
 
-        data = request.get_json(silent=True) or {}
+        data = request.get_json(
+            silent=True
+        ) or {}
 
         text = data.get(
             "text",
@@ -552,33 +604,28 @@ def sentiment():
 
         if not isinstance(text, str):
 
-            return error_response(
-                "Text must be a string."
-            )
-
-        text = text.strip()
-
-        if not text:
-
-            return error_response(
-                "Please enter text to analyze."
+            raise ValueError(
+                "Input must be text."
             )
 
         if len(text) > 5000:
 
-            return error_response(
-                "Text must not exceed 5000 characters."
+            raise ValueError(
+                "Text cannot exceed 5000 characters."
             )
 
-        analyzer = get_model("sentiment")
+        analyzer = get_model(
+            "sentiment"
+        )
 
-        result = analyzer.analyze_sentiment(text)
+        result = analyzer.analyze_sentiment(
+            text
+        )
 
-        db.save_analysis(
-            module_name="sentiment_analysis",
-            input_text=text,
-            result=str(result),
-            confidence=result.get("confidence")
+        record_analysis(
+            "sentiment_analysis",
+            text,
+            result
         )
 
         return success_response(
@@ -586,28 +633,41 @@ def sentiment():
             "Sentiment analysis completed."
         )
 
+    except ValueError as error:
+
+        return error_response(
+            str(error),
+            400
+        )
+
     except Exception:
 
-        logger.exception(
-            "Sentiment analysis failed."
+        log_error(
+            "Sentiment analysis request failed."
         )
 
         return error_response(
-            "Sentiment analysis failed.",
-            500
+            "Unable to analyze sentiment.",
+            500,
+            "SENTIMENT_ERROR"
         )
 
 
-# ==========================================
+# ======================================
 # FAKE NEWS DETECTION
-# ==========================================
+# ======================================
 
-@app.route("/fake-news", methods=["POST"])
+@app.route(
+    "/fake-news",
+    methods=["POST"]
+)
 def fake_news():
 
     try:
 
-        data = request.get_json(silent=True) or {}
+        data = request.get_json(
+            silent=True
+        ) or {}
 
         text = data.get(
             "text",
@@ -616,90 +676,93 @@ def fake_news():
 
         if not isinstance(text, str):
 
-            return error_response(
-                "Article text must be a string."
-            )
-
-        text = text.strip()
-
-        if not text:
-
-            return error_response(
-                "Please enter an article."
+            raise ValueError(
+                "News content must be text."
             )
 
         if len(text) > 10000:
 
-            return error_response(
-                "Article must not exceed 10000 characters."
+            raise ValueError(
+                "News content cannot exceed 10000 characters."
             )
 
         detector = FakeNewsDetector()
 
-        result = detector.predict(text)
+        result = detector.predict(
+            text
+        )
 
-        db.save_analysis(
-            module_name="fake_news",
-            input_text=text[:1000],
-            result=str(result),
-            confidence=result.get("confidence")
+        record_analysis(
+            "fake_news_detection",
+            text,
+            result
         )
 
         return success_response(
             result,
-            "Fake-news analysis completed."
+            "News classification completed."
+        )
+
+    except ValueError as error:
+
+        return error_response(
+            str(error),
+            400
         )
 
     except FileNotFoundError:
 
         return error_response(
-            "Fake-news model not found. Train the model first.",
-            503
+            "Fake news model is not trained yet.",
+            503,
+            "MODEL_NOT_AVAILABLE"
         )
 
     except Exception:
 
-        logger.exception(
-            "Fake-news detection failed."
+        log_error(
+            "Fake news detection request failed."
         )
 
         return error_response(
-            "Fake-news detection failed.",
-            500
+            "Unable to classify the news content.",
+            500,
+            "FAKE_NEWS_ERROR"
         )
 
 
-# ==========================================
+# ======================================
 # MACHINE LEARNING PREDICTION
-# ==========================================
+# ======================================
 
-@app.route("/ml-prediction", methods=["POST"])
+@app.route(
+    "/ml-prediction",
+    methods=["POST"]
+)
 def ml_prediction():
 
     try:
 
-        data = request.get_json(silent=True) or {}
+        data = request.get_json(
+            silent=True
+        ) or {}
 
-        values = data.get("values")
+        values = data.get(
+            "values"
+        )
 
         model_name = data.get(
             "model",
             "random_forest"
         )
 
-        if not isinstance(values, list) or len(values) != 4:
-
-            return error_response(
-                "Exactly four numeric feature values are required."
-            )
-
         if model_name not in [
             "random_forest",
             "xgboost"
         ]:
 
-            return error_response(
-                "Unsupported prediction model."
+            raise ValueError(
+                "Unsupported machine-learning model."
             )
 
         predictor = get_model("ml")
@@ -709,11 +772,10 @@ def ml_prediction():
             model_name=model_name
         )
 
-        db.save_analysis(
-            module_name="ml_prediction",
-            input_text=str(values),
-            result=str(result),
-            confidence=result.get("confidence")
+        record_analysis(
+            "ml_prediction",
+            str(values),
+            result
         )
 
         return success_response(
@@ -721,29 +783,34 @@ def ml_prediction():
             "Prediction completed."
         )
 
-    except (ValueError, TypeError) as error:
+    except ValueError as error:
 
         return error_response(
-            str(error)
+            str(error),
+            400
         )
 
     except Exception:
 
-        logger.exception(
-            "Machine learning prediction failed."
+        log_error(
+            "Machine-learning prediction failed."
         )
 
         return error_response(
-            "Machine learning prediction failed.",
-            500
+            "Unable to generate prediction.",
+            500,
+            "ML_PREDICTION_ERROR"
         )
 
 
-# ==========================================
+# ======================================
 # CHATBOT
-# ==========================================
+# ======================================
 
-@app.route("/chatbot", methods=["POST"])
+@app.route(
+    "/chatbot",
+    methods=["POST"]
+)
 def chatbot():
 
     try:
@@ -755,14 +822,14 @@ def chatbot():
 
         if not message:
 
-            return error_response(
+            raise ValueError(
                 "Please enter a message."
             )
 
         if len(message) > 1000:
 
-            return error_response(
-                "Message must not exceed 1000 characters."
+            raise ValueError(
+                "Message cannot exceed 1000 characters."
             )
 
         bot = get_model("chatbot")
@@ -784,28 +851,47 @@ def chatbot():
 
         session.modified = True
 
+        record_analysis(
+            "chatbot",
+            message,
+            {
+                "response": result.get("response")
+            }
+        )
+
         return success_response(
             result,
             "Chatbot response generated."
         )
 
+    except ValueError as error:
+
+        return error_response(
+            str(error),
+            400
+        )
+
     except Exception:
 
-        logger.exception(
+        log_error(
             "Chatbot request failed."
         )
 
         return error_response(
-            "Chatbot request failed.",
-            500
+            "Unable to generate chatbot response.",
+            500,
+            "CHATBOT_ERROR"
         )
 
 
-# ==========================================
+# ======================================
 # RESET CHAT
-# ==========================================
+# ======================================
 
-@app.route("/reset-chat", methods=["POST"])
+@app.route(
+    "/reset-chat",
+    methods=["POST"]
+)
 def reset_chat():
 
     session.pop(
@@ -813,29 +899,51 @@ def reset_chat():
         None
     )
 
+    session.modified = True
+
     return success_response(
-        {"reset": True},
-        "Chat history cleared."
+        {
+            "history": []
+        },
+        "Conversation reset successfully."
     )
 
 
-# ==========================================
+# ======================================
 # ANALYSIS HISTORY
-# ==========================================
+# ======================================
 
-@app.route("/analysis-history", methods=["GET"])
+@app.route(
+    "/analysis-history",
+    methods=["GET"]
+)
 def analysis_history():
 
     try:
 
-        limit = request.args.get(
+        raw_limit = request.args.get(
             "limit",
-            default=50,
-            type=int
+            "50"
         )
 
-        history = db.get_analysis_history(
-            limit
+        try:
+
+            limit = int(raw_limit)
+
+        except ValueError:
+
+            raise ValueError(
+                "Limit must be a valid integer."
+            )
+
+        if not 1 <= limit <= 500:
+
+            raise ValueError(
+                "Limit must be between 1 and 500."
+            )
+
+        history = database.get_analysis_history(
+            limit=limit
         )
 
         return success_response(
@@ -843,54 +951,90 @@ def analysis_history():
             "Analysis history retrieved."
         )
 
+    except ValueError as error:
+
+        return error_response(
+            str(error),
+            400
+        )
+
     except Exception:
 
-        logger.exception(
+        log_error(
             "Analysis history retrieval failed."
         )
 
         return error_response(
-            "Could not retrieve analysis history.",
-            500
+            "Unable to retrieve analysis history.",
+            500,
+            "HISTORY_ERROR"
         )
 
 
-# ==========================================
+# ======================================
 # HEALTH CHECK
-# ==========================================
+# ======================================
 
-@app.route("/health", methods=["GET"])
+@app.route(
+    "/health",
+    methods=["GET"]
+)
 def health():
 
-    return jsonify({
-        "status": "healthy",
-        "application": APP_NAME,
-        "version": APP_VERSION
-    }), 200
-
-
-# ==========================================
-# REQUEST TOO LARGE
-# ==========================================
-
-@app.errorhandler(413)
-def request_entity_too_large(error):
-
-    return error_response(
-        "Uploaded file is too large.",
-        413,
-        "FILE_TOO_LARGE"
+    return success_response(
+        {
+            "status": "healthy",
+            "application": APP_NAME,
+            "version": APP_VERSION
+        },
+        "Application is running."
     )
 
 
-# ==========================================
-# GLOBAL ERROR HANDLER
-# ==========================================
+# ======================================
+# REQUEST SIZE ERROR
+# ======================================
+
+@app.errorhandler(413)
+def request_too_large(error):
+
+    return error_response(
+        "Uploaded request exceeds the permitted size.",
+        413,
+        "REQUEST_TOO_LARGE"
+    )
+
+
+# ======================================
+# PAGE NOT FOUND
+# ======================================
+
+@app.errorhandler(404)
+def page_not_found(error):
+
+    if request.path.startswith("/api/"):
+
+        return error_response(
+            "Requested API endpoint was not found.",
+            404,
+            "NOT_FOUND"
+        )
+
+    return error_response(
+        "Requested page was not found.",
+        404,
+        "NOT_FOUND"
+    )
+
+
+# ======================================
+# INTERNAL SERVER ERROR
+# ======================================
 
 @app.errorhandler(500)
 def internal_server_error(error):
 
-    logger.exception(
+    log_error(
         "Internal server error."
     )
 
@@ -901,21 +1045,14 @@ def internal_server_error(error):
     )
 
 
-# ==========================================
+# ======================================
 # APPLICATION STARTUP
-# ==========================================
+# ======================================
 
 if __name__ == "__main__":
 
-    logger.info(
-        "Starting %s version %s",
-        APP_NAME,
-        APP_VERSION
-    )
-
-    logger.info(
-        "Debug mode: %s",
-        DEBUG
+    log_info(
+        f"{APP_NAME} version {APP_VERSION} starting."
     )
 
     app.run(
