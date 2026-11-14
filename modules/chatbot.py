@@ -1,40 +1,64 @@
 
+import logging
+
 import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM
+
+from transformers import (
+    AutoTokenizer,
+    AutoModelForCausalLM
+)
 
 from config import CHATBOT_MODEL_NAME
 
 
+logger = logging.getLogger("AI-Vision-Hub")
+
+
 class Chatbot:
+    """
+    AI Vision Hub conversational chatbot.
+
+    Uses Microsoft's DialoGPT model to generate
+    conversational responses.
+    """
 
     def __init__(self):
 
-        self.model_name = CHATBOT_MODEL_NAME
+        logger.info(
+            "Initializing chatbot: %s",
+            CHATBOT_MODEL_NAME
+        )
 
-        self.device = (
-            "cuda" if torch.cuda.is_available()
-            else "cpu"
+        # Select CPU or GPU.
+        self.device = torch.device(
+            "cuda" if torch.cuda.is_available() else "cpu"
         )
 
         # Load tokenizer.
         self.tokenizer = AutoTokenizer.from_pretrained(
-            self.model_name
+            CHATBOT_MODEL_NAME
         )
 
-        # Load conversational language model.
+        # Load language model.
         self.model = AutoModelForCausalLM.from_pretrained(
-            self.model_name
+            CHATBOT_MODEL_NAME
         )
 
         self.model.to(self.device)
         self.model.eval()
 
-        # DialoGPT uses the EOS token as its padding token.
+        # Configure padding.
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
 
-        self.max_history_tokens = 700
+        # Generation settings.
+        self.max_history_turns = 4
         self.max_new_tokens = 100
+        self.max_input_tokens = 768
+
+        logger.info(
+            "Chatbot initialized successfully."
+        )
 
     # ======================================
     # VALIDATE MESSAGE
@@ -44,20 +68,16 @@ class Chatbot:
     def validate_message(message):
 
         if not isinstance(message, str):
-            raise ValueError(
-                "Message must be text."
-            )
+            raise ValueError("Message must be text.")
 
         message = message.strip()
 
         if not message:
-            raise ValueError(
-                "Message cannot be empty."
-            )
+            raise ValueError("Message cannot be empty.")
 
         if len(message) > 1000:
             raise ValueError(
-                "Message must be 1000 characters or fewer."
+                "Message cannot exceed 1000 characters."
             )
 
         return message
@@ -69,99 +89,93 @@ class Chatbot:
     def build_history(self, history):
 
         if not isinstance(history, list):
-            history = []
+            return []
 
-        conversation_ids = []
+        valid_history = []
 
-        for item in history[-12:]:
+        for item in history:
 
             if not isinstance(item, dict):
                 continue
 
-            message = item.get("message", "")
-            speaker = item.get("speaker", "")
+            speaker = item.get("speaker")
+            message = item.get("message")
 
-            if speaker not in ("user", "assistant"):
+            if speaker not in ["user", "assistant"]:
                 continue
 
-            if not isinstance(message, str) or not message.strip():
+            if not isinstance(message, str):
                 continue
 
-            encoded = self.tokenizer.encode(
-                message.strip(),
-                add_special_tokens=False
-            )
+            message = message.strip()
 
-            if conversation_ids:
-                conversation_ids.extend(encoded)
-            else:
-                conversation_ids = encoded
+            if not message:
+                continue
 
-            conversation_ids.append(
-                self.tokenizer.eos_token_id
-            )
+            valid_history.append({
+                "speaker": speaker,
+                "message": message[:1000]
+            })
 
-        # Keep recent conversation tokens only.
-        conversation_ids = conversation_ids[
-            -self.max_history_tokens:
+        return valid_history[
+            -self.max_history_turns * 2:
         ]
 
-        return conversation_ids
-
     # ======================================
-    # GENERATE CHAT RESPONSE
+    # ENCODE CONVERSATION
     # ======================================
 
-    def chat(self, message, history=None):
+    def encode_conversation(self, history, message):
 
-        message = self.validate_message(message)
+        conversation_text = ""
 
-        if history is None:
-            history = []
+        for item in history:
 
-        history_ids = self.build_history(history)
-
-        user_ids = self.tokenizer.encode(
-            message + self.tokenizer.eos_token,
-            return_tensors="pt"
-        ).to(self.device)
-
-        if history_ids:
-            history_tensor = torch.tensor(
-                [history_ids],
-                dtype=torch.long,
-                device=self.device
+            conversation_text += (
+                item["message"] +
+                self.tokenizer.eos_token
             )
 
-            input_ids = torch.cat(
-                [history_tensor, user_ids],
-                dim=-1
-            )
-        else:
-            input_ids = user_ids
+        conversation_text += (
+            message +
+            self.tokenizer.eos_token
+        )
 
-        input_ids = input_ids[
-            :, -self.max_history_tokens:
-        ]
+        encoded = self.tokenizer.encode(
+            conversation_text,
+            return_tensors="pt",
+            truncation=True,
+            max_length=self.max_input_tokens
+        )
 
-        attention_mask = torch.ones_like(input_ids)
+        return encoded.to(self.device)
 
-        with torch.no_grad():
+    # ======================================
+    # GENERATE CHATBOT RESPONSE
+    # ======================================
 
-            output = self.model.generate(
-                input_ids=input_ids,
+    def generate_response(self, input_ids):
+
+        attention_mask = torch.ones_like(
+            input_ids
+        )
+
+        with torch.inference_mode():
+
+            output_ids = self.model.generate(
+                input_ids,
                 attention_mask=attention_mask,
                 max_new_tokens=self.max_new_tokens,
                 pad_token_id=self.tokenizer.eos_token_id,
-                eos_token_id=self.tokenizer.eos_token_id,
                 do_sample=True,
                 temperature=0.7,
                 top_p=0.9,
                 repetition_penalty=1.1
             )
 
-        generated_ids = output[
-            :, input_ids.shape[-1]:
+        generated_ids = output_ids[
+            :,
+            input_ids.shape[-1]:
         ]
 
         response = self.tokenizer.decode(
@@ -170,24 +184,71 @@ class Chatbot:
         ).strip()
 
         if not response:
-            response = "I'm sorry, I couldn't generate a response."
 
-        updated_history = history[-10:] + [
-            {
-                "speaker": "user",
-                "message": message
-            },
-            {
-                "speaker": "assistant",
-                "message": response
+            response = (
+                "I'm sorry, I couldn't generate a response. "
+                "Please try asking another question."
+            )
+
+        return response
+
+    # ======================================
+    # MAIN CHAT FUNCTION
+    # ======================================
+
+    def chat(self, message, history=None):
+
+        message = self.validate_message(message)
+
+        conversation = self.build_history(
+            history
+        )
+
+        try:
+
+            input_ids = self.encode_conversation(
+                conversation,
+                message
+            )
+
+            response = self.generate_response(
+                input_ids
+            )
+
+            updated_history = conversation + [
+                {
+                    "speaker": "user",
+                    "message": message
+                },
+                {
+                    "speaker": "assistant",
+                    "message": response
+                }
+            ]
+
+            updated_history = updated_history[
+                -self.max_history_turns * 2:
+            ]
+
+            logger.info(
+                "Chatbot response generated successfully."
+            )
+
+            return {
+                "response": response,
+                "history": updated_history,
+                "model": CHATBOT_MODEL_NAME
             }
-        ]
 
-        return {
-            "response": response,
-            "history": updated_history,
-            "model": self.model_name
-        }
+        except Exception:
+
+            logger.exception(
+                "Chatbot response generation failed."
+            )
+
+            raise RuntimeError(
+                "The chatbot could not generate a response."
+            )
 
     # ======================================
     # RESET CONVERSATION
@@ -196,4 +257,17 @@ class Chatbot:
     @staticmethod
     def reset_chat():
 
-        return []
+        return {
+            "response": "",
+            "history": [],
+            "message": "Conversation reset successfully."
+        }
+
+
+# ==========================================
+# MODULE EXPORTS
+# ==========================================
+
+__all__ = [
+    "Chatbot"
+]
